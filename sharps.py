@@ -93,13 +93,14 @@ if __name__ == "__main__":
     for dir, times in zip(LABELS, TIMES):
         for time in times:
             # [? (QUALITY<65536) ?]
-            keys = c.query(f'{series}[{sharpnum}][{time}][? (QUALITY<65536) ?]', key=KEY_VALUES_TREC, rec_index=True)
+            keys = c.query(f'{series}[{sharpnum}][{time}][]', key=KEY_VALUES_TREC, rec_index=True)
             t_rec = np.array([parse_tai_string(keys.T_REC[i], datetime=True) for i in range(keys.T_REC.size)])
             keys.replace([np.inf, -np.inf], np.nan, inplace=True)
             keys = keys.dropna()
             time_series = np.array(list(range(1, keys.T_REC.size + 1)))
             print(time)
 
+            fig, ax = plt.subplots(4, 3, figsize=(16, 24))
             for key in KEY_VALUES:
                 Y = keys[key]
                 reg = LinearRegression().fit(np.reshape(time_series, (-1, 1)), Y)
