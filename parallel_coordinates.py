@@ -67,22 +67,6 @@ def floor_minute(time, cadence=12):
     return time - datetime.timedelta(minutes=time.minute % cadence)
 
 
-C_CLASS_FLARES = [
-    1
-]
-
-B_CLASS_FLARES = [
-    2
-]
-
-M_CLASS_FLARES = [
-    3
-]
-
-X_CLASS_FLARES = [
-    4
-]
-
 def main():
     # Choose which flares to plot.
     # ABC Flares
@@ -148,26 +132,8 @@ def main():
         mx_data = pd.concat([mx_data, mx_series])
 
     # Combine BC and MX class flares into one dataframe and plot.
-    colors = ["cyan", "lime", "red", "magenta"]
-    columns = [
-        'ABSNJZH',
-        'AREA_ACR',
-        'MEANGAM',
-        'MEANGBH',
-        'MEANGBT',
-        'MEANGBZ',
-        'MEANJZD',
-        'MEANJZH',
-        'MEANPOT',
-        'MEANSHR',
-        'R_VALUE',
-        'SAVNCPP',
-        'SHRGT45',
-        'TOTPOT',
-        'TOTUSJH',
-        'TOTUSJZ',
-        'USFLUX',
-    ]
+    colors = ["cyan", "lime", "orange", "red"]
+    columns = FLARE_PROPERTIES
     flares_df = pd.concat([bc_data, mx_data])
     flares_df[columns] = MinMaxScaler().fit_transform(flares_df[columns])
     plt.style.use('dark_background')
@@ -177,11 +143,21 @@ def main():
                                      "CLASS", color=colors)
     fig.tight_layout()
     fig.show()
-    fig.savefig("all_parameters")
+    fig.savefig("parallel_coordinates")
+
+
+
+
+
+
+
+
+
+
+
+
 
     # COMMENT OUT BELOW CODE FOR SINGLE PLOTS
-
-
 
     # # Find corresponding ending index in properties dataframe.
     # abc_end_series = abc_properties_df.loc[
