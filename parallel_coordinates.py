@@ -136,7 +136,7 @@ def main():
     columns = FLARE_PROPERTIES
     flares_df = pd.concat([bc_data, mx_data])
     flares_df[columns] = MinMaxScaler().fit_transform(flares_df[columns])
-    plt.style.use('dark_background')
+    # plt.style.use('dark_background')
     fig = plt.figure(figsize=(25, 12))
     pd.plotting.parallel_coordinates(flares_df.drop("T_REC", axis=1).
                                      drop("NOAA_AR", axis=1),
