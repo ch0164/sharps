@@ -80,7 +80,7 @@ def main():
 
     # Define input for flare.
     flare_index = 9  # Valid: 0 to 765
-    time_range = 48  # Valid: 1 to 48 hours
+    time_range = 24  # Valid: 1 to 48 hours
 
     # Convert time strings to datetime objects for cleaned info data.
     for time_string in ["time_start", "time_peak", "time_end"]:
@@ -115,13 +115,15 @@ def main():
     for index, row in bc_info.iterrows():
         timestamp = row["time_start"]
         nar = row["nar"]
+        flare_class = row["xray_class"]
         bc_series = abc_properties_df.loc[
             abc_properties_df["T_REC"] == timestamp].head(1)
         if bc_series.empty:
             continue
         elif bc_series.loc[bc_series["NOAA_AR"] == nar].empty:
             continue
-        bc_end_index = bc_series.loc[bc_series["NOAA_AR"] == nar].index.tolist()[0]
+        bc_end_index = \
+            bc_series.loc[bc_series["NOAA_AR"] == nar].index.tolist()[0]
         bc_start_index = bc_end_index
 
         # Get defined range before flare.
@@ -129,15 +131,14 @@ def main():
             if bc_end_index - i >= 0:
                 if abc_properties_df["NOAA_AR"][bc_end_index - i] == nar:
                     bc_start_index = bc_end_index - i
-        bc_range = abc_properties_df.iloc[bc_start_index:bc_end_index]
 
-        # Get the average for this flare.
-        bc_range_mean = bc_range.drop("T_REC", axis=1).drop("NOAA_AR", axis=1)\
-            .mean().to_frame().T
-        bc_range_mean.insert(0, "CLASS", row["xray_class"])
-        bc_data = pd.concat([bc_data, bc_range_mean])
-    print(bc_data)
-    print(bc_data[bc_data["CLASS"] == "B"])
+        # Get a DataFrame with only the starting and ending indices,
+        # then find their difference.
+        # Specifically, start_of_flare - timepoint_before_flare.
+        diff_df = pd.DataFrame(abc_properties_df.iloc[[bc_start_index, bc_end_index]])
+        diff_df = diff_df.drop(["T_REC", "NOAA_AR"], axis=1).diff().iloc[1]
+        diff_df["CLASS"] = flare_class
+        bc_data = pd.concat([bc_data, diff_df.to_frame().T])
 
     # Get M and X class flares, round down their minutes.
     m_df = mx_info_df.loc[mx_info_df["xray_class"] == "M"]
@@ -153,13 +154,15 @@ def main():
     for index, row in mx_info.iterrows():
         timestamp = row["time_start"]
         nar = row["nar"]
+        flare_class = row["xray_class"]
         mx_series = mx_properties_df.loc[
             mx_properties_df["T_REC"] == timestamp].head(1)
         if mx_series.empty:
             continue
         elif mx_series.loc[mx_series["NOAA_AR"] == nar].empty:
             continue
-        mx_end_index = mx_series.loc[mx_series["NOAA_AR"] == nar].index.tolist()[0]
+        mx_end_index = \
+        mx_series.loc[mx_series["NOAA_AR"] == nar].index.tolist()[0]
         mx_start_index = mx_end_index
 
         # Get defined range before flare.
@@ -167,17 +170,15 @@ def main():
             if mx_end_index - i >= 0:
                 if mx_properties_df["NOAA_AR"][mx_end_index - i] == nar:
                     mx_start_index = mx_end_index - i
-        mx_range = mx_properties_df.iloc[mx_start_index:mx_end_index]
 
-        # Get the average for this flare.
-        mx_range_mean = mx_range.drop("T_REC", axis=1).drop("NOAA_AR", axis=1)\
-            .mean().to_frame().T
-        mx_range_mean.insert(0, "CLASS", row["xray_class"])
-        mx_data = pd.concat([mx_data, mx_range_mean])
-    # print(mx_data)
-    print(mx_data[mx_data["CLASS"] == "X"])
-
-        # mx_data = pd.concat([mx_data, mx_series])
+        # Get a DataFrame with only the starting and ending indices,
+        # then find their difference.
+        # Specifically, start_of_flare - timepoint_before_flare.
+        diff_df = pd.DataFrame(
+            abc_properties_df.iloc[[mx_start_index, mx_end_index]])
+        diff_df = diff_df.drop(["T_REC", "NOAA_AR"], axis=1).diff().iloc[1]
+        diff_df["CLASS"] = flare_class
+        mx_data = pd.concat([mx_data, diff_df.to_frame().T])
 
     # Combine BC and MX class flares into one dataframe and plot.
     # Shapes:
@@ -187,73 +188,48 @@ def main():
     # Class X Flares Shape:  (51, 6)
     colors = ["cyan", "lime", "orange", "red"]
     columns = FLARE_PROPERTIES
-    time_label = f"Flare {time_range}h Range"
+    time_label = "24h Difference"
     flares_df = pd.concat([bc_data, mx_data])
-
-    b_df = flares_df.loc[flares_df["CLASS"] == "B"]
-    c_df = flares_df.loc[flares_df["CLASS"] == "C"]
-    m_df = flares_df.loc[flares_df["CLASS"] == "M"]
-    x_df = flares_df.loc[flares_df["CLASS"] == "X"]
-
-    print(b_df, c_df, m_df, x_df)
-
-    print(b_df.mean())
-
-    average_df = b_df.mean()
-
-    # Plot specified flare properties over the specified time.
-    for flare_class, flare_df in zip(CLASS_LABELS, [b_df, c_df, m_df, x_df]):
-        fig, ax = plt.subplots(6, 3, figsize=(18, 20))
-        row, col = 0, 0
-        if flare_class in ["B", "C"]:
-            properties_df = abc_properties_df
-        else:
-            properties_df = mx_properties_df
-
-        for flare_property in FLARE_PROPERTIES:
-            property_df = properties_df[["T_REC", flare_property]]
-            print(property_df["T_REC"])
-            property_df.iloc[abc_start_index:abc_end_index].plot(
-                x="T_REC", y=flare_property, ax=ax[row, col], legend=False)
-            ax[row, col].set_ylabel(flare_property)
-            ax[row, col].set_title(
-                f"Total {flare_property} from {properties_df['T_REC'].values[0]}")
-
-            col += 1
-            if col == 3:
-                col = 0
-                row += 1
-
-        fig.tight_layout()
-        fig.show()
-        fig.savefig(f"{flare_class}_average_plot")
+    print(bc_data)
+    print(mx_data)
+    print(flares_df)
+    scaler = MinMaxScaler(feature_range=(0, 3))
+    flares_df[columns] = scaler.fit_transform(flares_df[columns])
+    print(flares_df)
+    print(scaler.scale_)
 
 
+    # RANGE
+    # [3.09484799e-04 1.42190571e-04 1.62180187e-02 1.22908490e-02
+    #  6.55972659e-03 6.64748764e-03 8.16942490e-01 9.00028740e+00
+    #  4.19375870e-05 1.82696977e-02 1.84193419e-01 1.10904007e-14
+    #  1.52653072e-02 1.90717354e-25 7.43773243e-05 4.25874564e-15
+    #  5.05737357e-24]
 
-    # scaler = MinMaxScaler()
-    # flares_df[columns] = scaler.fit_transform(flares_df[columns])
-    # print(scaler.scale_)
-    #
-    # # Plot the complete set of flares for all classes.
-    # plt.style.use('dark_background')
-    # fig = plt.figure(figsize=(25, 12))
-    # pd.plotting.parallel_coordinates(flares_df,
-    #                                  "CLASS", color=colors)
-    # fig.tight_layout()
-    # fig.suptitle(f"All Flares Complete ({time_label})", fontsize=20)
-    # fig.show()
-    # fig.savefig(f"parallel_coordinates/{time_label}/complete_all_classes.png")
+    # Plot the complete set of flares for all classes.
+    plt.style.use('dark_background')
+    fig = plt.figure(figsize=(25, 12))
+    pd.plotting.parallel_coordinates(flares_df,
+                                     "CLASS", color=colors)
+    fig.tight_layout()
+    fig.suptitle(f"All Flares Complete ({time_label})", fontsize=20)
+    fig.show()
+    fig.savefig(f"parallel_coordinates/{time_label}/complete_all_classes.png")
     #
     # # For each flare, plot their complete set individually.
     # # Then, plot a random subset of them individually,
     # # as well as all together.
     # mean_df = pd.DataFrame()
     # subset_df = pd.DataFrame()
-    # n = 28
+    # print("C CLASS ",flares_df[flares_df["CLASS"] == "C"].shape)
+    # print("B CLASS ", flares_df[flares_df["CLASS"] == "B"].shape)
+    # n = 40
     # for flare_class, color in zip(CLASS_LABELS, colors):
     #     fig = plt.figure(figsize=(25, 12))
     #     class_df = flares_df[flares_df["CLASS"] == flare_class]
-    #     pd.plotting.parallel_coordinates(class_df,
+    #     pd.plotting.parallel_coordinates(class_df
+    #                                      .drop("T_REC", axis=1)
+    #                                      .drop("NOAA_AR", axis=1),
     #                                      "CLASS", color=[color])
     #     fig.tight_layout()
     #     fig.suptitle(f"{flare_class} Complete ({time_label})",
@@ -264,11 +240,13 @@ def main():
     #
     #     fig = plt.figure(figsize=(25, 12))
     #     # X Class flares are limited.
-    #     if "X" in flare_class and n > 28:
-    #         class_subset_df = class_df.sample(n=28)
+    #     if "X" in flare_class and n > 40:
+    #         class_subset_df = class_df.sample(n=40)
     #     else:
     #         class_subset_df = class_df.sample(n=n)
-    #     pd.plotting.parallel_coordinates(class_subset_df,
+    #     pd.plotting.parallel_coordinates(class_subset_df
+    #                                      .drop("T_REC", axis=1)
+    #                                      .drop("NOAA_AR", axis=1),
     #                                      "CLASS", color=[color])
     #     fig.tight_layout()
     #     fig.suptitle(f"{flare_class} Random Sample, n = {n} ({time_label})", fontsize=20)
@@ -286,7 +264,9 @@ def main():
     #
     #
     # fig = plt.figure(figsize=(25, 12))
-    # pd.plotting.parallel_coordinates(subset_df,
+    # pd.plotting.parallel_coordinates(subset_df
+    #                                  .drop("T_REC", axis=1)
+    #                                  .drop("NOAA_AR", axis=1),
     #                                  "CLASS", color=colors)
     # fig.tight_layout()
     # fig.suptitle(f"All Flares Random Sample, n = {n} ({time_label})", fontsize=20)
@@ -294,16 +274,16 @@ def main():
     # fig.savefig(f"parallel_coordinates/{time_label}/subset{n}_all_classes.png")
     #
     # fig = plt.figure(figsize=(25, 12))
-    # pd.plotting.parallel_coordinates(mean_df,
+    # pd.plotting.parallel_coordinates(mean_df
+    #                                  .drop("NOAA_AR", axis=1),
     #                                  "CLASS", color=colors)
     # fig.tight_layout()
     # fig.suptitle(f"Mean ({time_label})", fontsize=20)
     # fig.show()
     # fig.savefig(f"parallel_coordinates/{time_label}/complete_mean_all_classes.png")
-    #
-    #
-    # # Plot boxplots for all classes.
-    # plt.style.use('default')
+
+    # Plot boxplots for all classes.
+    # plt.style.use("default")
     # for flare_class in CLASS_LABELS:
     #     fig = plt.figure(figsize=(25, 12))
     #     if flare_class in ["B", "C"]:
@@ -316,12 +296,8 @@ def main():
     #                  f"{flare_data.shape[0]} datapoints", fontsize=20)
     #     fig.tight_layout()
     #     fig.show()
-    #     fig.savefig(f"parallel_coordinates/{time_label}/{flare_class}_boxplot.png")
-
-
-
-
-
+    #     fig.savefig(
+    #         f"parallel_coordinates/{time_label}/{flare_class}_boxplot.png")
 
     # COMMENT OUT BELOW CODE FOR SINGLE PLOTS
 
@@ -350,24 +326,11 @@ def main():
     # fig.show()
     # fig.savefig("abc_output")
 
-
     # print(abc_properties_df)
     # print(mx_properties_df)
 
     # print(abc_info_df)
     # print(mx_info_df)
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 if __name__ == "__main__":
