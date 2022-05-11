@@ -4,7 +4,10 @@ import drms
 import json, numpy as np, matplotlib.pylab as plt, matplotlib.ticker as mtick
 from datetime import datetime as dt_obj
 import urllib
+
+import matplotlib
 from astropy.io import fits
+from matplotlib.colors import ListedColormap
 from sklearn.decomposition import PCA
 from sunpy.visualization.colormaps import color_tables as ct
 from matplotlib.dates import *
@@ -71,6 +74,7 @@ def floor_minute(time, cadence=12):
 
 
 def main():
+    plt.style.use("dark_background")
     # Choose which flares to plot.
     # ABC Flares
     abc_info_df = pd.read_csv("ABC_list.txt")
@@ -100,9 +104,8 @@ def main():
 
     # Get B and C class flares, round down their minutes.
     b_df = abc_info_df.loc[abc_info_df["xray_class"] == "B"]
-    print("Class B Flares Shape: ", b_df.shape)
     c_df = abc_info_df.loc[abc_info_df["xray_class"] == "C"]
-    print("Class C Flares Shape: ", c_df.shape)
+
     bc_info = pd.concat([b_df, c_df])
     bc_info["time_start"] = \
         bc_info["time_start"].apply(floor_minute)
@@ -118,9 +121,7 @@ def main():
 
     # Get M and X class flares, round down their minutes.
     m_df = mx_info_df.loc[mx_info_df["xray_class"] == "M"]
-    print("Class M Flares Shape: ", m_df.shape)
     x_df = mx_info_df.loc[mx_info_df["xray_class"] == "X"]
-    print("Class X Flares Shape: ", x_df.shape)
     mx_info = pd.concat([m_df, x_df])
     mx_info["time_start"] = \
         mx_info["time_start"].apply(floor_minute)
@@ -142,7 +143,7 @@ def main():
     # 3. For all other flares in the complete set:
     #    i. Get the other flare's range like above, then determine if both
     #    flares' ranges have any overlap -- if so, then append it to a list.
-    flare_info = pd.concat([bc_info, mx_info], ignore_index=True)
+    flare_info = pd.concat([mx_info], ignore_index=True)
     flare_info.drop("Unnamed: 0", axis=1, inplace=True)
 
     b_df = flare_info.loc[flare_info["xray_class"] == "B"]
@@ -150,6 +151,10 @@ def main():
     m_df = flare_info.loc[flare_info["xray_class"] == "M"]
     x_df = flare_info.loc[flare_info["xray_class"] == "X"]
 
+    text = f"""Class B Flares Shape: {b_df.shape}
+Class C Flares Shape: {c_df.shape}
+Class M Flares Shape: {m_df.shape}
+Class X Flares Shape: {x_df.shape}"""
 
     def info_to_data(info, data):
         df = pd.DataFrame()
@@ -160,102 +165,113 @@ def main():
             df = pd.concat([df, df_sort])
         return df
 
-
-    info_to_data(b_df, bc_data)
-    info_to_data(b_df, bc_data)
-    info_to_data(b_df, bc_data)
     b_data_df = info_to_data(b_df, bc_data)
     c_data_df = info_to_data(c_df, bc_data)
     m_data_df = info_to_data(m_df, mx_data)
     x_data_df = info_to_data(x_df, mx_data)
 
+    # MULTIPLE FLARES BELOW
+    flare_matrix = np.zeros(shape=(flare_info.shape[0], flare_info.shape[0]),
+                            dtype=int)
+    flare_coincidences_mix = [0 for _ in range(flare_info.shape[0])]
+    flare_coincidences_same = [0 for _ in range(flare_info.shape[0])]
 
-    # Plot PCA
-    flare_dataframes = [b_data_df, c_data_df, m_data_df, x_data_df]
-    flare_indices = [(0, 0), (0, 1), (1, 0), (1, 1)]
-    plt.style.use("dark_background")
-    fig, ax = plt.subplots(2, 2)
-    pc_labels = [f"PC{i}" for i in range(1, 17 + 1)]
-    i, j = 0, 0
-    for df, label, indices in zip(flare_dataframes, CLASS_LABELS, flare_indices):
-        i, j = indices
-        df.drop(["T_REC", "NOAA_AR"], axis=1, inplace=True)
-        pca = PCA()
-        pca.fit_transform(MinMaxScaler().fit_transform(df))
-        ev = pca.explained_variance_ratio_
-        ax[i, j].set_title(f"Class {label} PCA ({df.shape[0]} Flares)")
-        ax[i, j].set_xlabel("Principal Components")
-        ax[i, j].set_ylabel("Explained Variance Ratio")
-        ax[i, j].set_xticks(range(17), pc_labels, fontsize=8, rotation="vertical")
-        ax[i, j].bar(range(len(ev)), list(ev * 100),
-                  align="center", color="b")
+    for index1, row1 in flare_info.iterrows():
+        flare_class1 = row1["xray_class"]
+        print(index1)
+        time_end1 = row1["time_end"]
+        time_start1 = time_end1 - datetime.timedelta(1)
+        for index2, row2 in flare_info.iterrows():
+            flare_class2 = row2["xray_class"]
+            # Don't count the same flare.
+            if index1 == index2:
+                continue
+            # Only look for flares in the same class.
+            time_end2 = row2["time_end"]
+            time_start2 = time_end2 - datetime.timedelta(1)
+            flares_overlap = (time_start1 <= time_start2 <= time_end1) or (
+                    time_start1 <= time_end2 <= time_end1)
+            if flares_overlap:
+
+                if flare_class1 == flare_class2:
+                    if flare_class1 == "M":
+                        flare_matrix[index1][index2] = 1
+                    elif flare_class1 == "X":
+                        flare_matrix[index1][index2] = 2
+                    flare_coincidences_same[index1] += 1
+                else:
+                    flare_matrix[index1][index2] = 3
+                flare_coincidences_mix[index1] += 1
+
+    def plot_examples(data, colors):
+        """
+        Helper function to plot data with associated colormap.
+        """
+        colormaps = ListedColormap(colors)
+        plt.figure(figsize=(16, 9))
+        im = plt.imshow(data, interpolation='nearest', cmap=colormaps)
+        plt.title("Coinciding Flares (M and X Flares)")
+        labels = ["None", "M-M", "X-X", "M-X"]
+        patches = [matplotlib.patches.Patch(color=colors[i],
+                                  label=labels[i]) for i in range(len(labels))]
+        plt.legend(handles=patches, bbox_to_anchor=(1.05, 1), loc=2,
+                   borderaxespad=0.)
+        plt.show()
+
+    colors = ["white", "purple", "red", "green"]
+    plot_examples(np.triu(flare_matrix).transpose(), colors)
+
+    # im = plt.imshow(flare_matrix, interpolation="nearest", cmap="binary")
+    # plt.colorbar(im)
+    # plt.title("Overlapping Flare Events (M and X Flares)")
+    # plt.show()
+
+    fig, ax = plt.subplots(1, 2, figsize=(16, 9))
+    mix_yticks = range(max(flare_coincidences_mix) + 1)
+    same_yticks = range(max(flare_coincidences_same) + 1)
+    ax[0].set_title(f"Coinciding Flares (M and X Flares Mix)")
+    ax[0].set_xlabel("Flare Index")
+    ax[0].set_ylabel("Number of Coincidental Flares")
+    ax[0].set_yticks(mix_yticks, mix_yticks)
+    # ax[1].text(400, max(flare_coincidences_mix) - 4, text)
+    ax[0].plot(range(flare_info.shape[0]), flare_coincidences_mix, color="y")
+    ax[1].set_title(f"Coinciding Flares (M and X Flares Same)")
+    ax[1].set_xlabel("Flare Index")
+    ax[1].set_ylabel("Number of Coincidental Flares")
+    ax[1].set_yticks(same_yticks, same_yticks)
+    ax[1].plot(range(flare_info.shape[0]), flare_coincidences_same, color="y")
+    # ax[1].text(400, max(flare_coincidences_mix) - 4, text)
     fig.tight_layout()
     fig.show()
 
-
-    print(b_data_df)
-    print(c_data_df)
-    print(m_data_df)
-    print(x_data_df)
-
-
-
-
-    # MULTIPLE FLARES BELOW
-
-    # multiple_flares = []
-    # for index in range(flare_info.shape[0]):
-    #     flare = {"flare_index": index, "overlapping_flares": []}
-    #     multiple_flares.append(flare)
-    # flare_matrix = np.zeros(shape=(flare_info.shape[0], flare_info.shape[0]),
-    #                         dtype=int)
+    # Plot PCA
+    # flare_dataframes = [b_data_df, c_data_df, m_data_df, x_data_df]
+    # flare_indices = [(0, 0), (0, 1), (1, 0), (1, 1)]
+    # fig, ax = plt.subplots(2, 2)
+    # pc_labels = [f"PC{i}" for i in range(1, 6 + 1)]
+    # for df, label, indices in zip(flare_dataframes, CLASS_LABELS, flare_indices):
+    #     i, j = indices
+    #     df.drop(["T_REC", "NOAA_AR"], axis=1, inplace=True)
+    #     pca = PCA(n_components=6)
+    #     pca.fit_transform(MinMaxScaler().fit_transform(df))
+    #     ev = pca.explained_variance_ratio_
+    #     ax[i, j].set_title(f"Class {label} PCA ({df.shape[0]} Flares)")
+    #     ax[i, j].set_xlabel("Principal Components")
+    #     ax[i, j].set_ylabel("Explained Variance Ratio")
+    #     ax[i, j].set_xticks(range(6), pc_labels, fontsize=8, rotation="vertical")
+    #     ax[i, j].bar(range(len(ev)), list(ev * 100),
+    #               align="center", color="y")
+    #     r = np.abs(pca.components_.T)
+    #     r /= r.sum(axis=0)
+    #     r = r.transpose()
+    #     pca_df = pd.DataFrame(r, columns=FLARE_PROPERTIES)
+    #     pca_df.index = pc_labels
+    #     print("Flare Class", label)
+    #     print(pca_df.T.to_latex())
     #
-    # print(flare_info.shape)
-
-    # for index1, row1 in flare_info.iterrows():
-    #     flare = multiple_flares[int(index1)]
-    #     print(flare)
-    #     flare_class1 = row1["xray_class"]
-    #     print(index1)
-    #     time_end1 = row1["time_end"]
-    #     time_start1 = time_end1 - datetime.timedelta(1)
-    #     for index2, row2 in flare_info.iterrows():
-    #         flare_class2 = row2["xray_class"]
-    #         # Don't count the same flare.
-    #         if index1 == index2:
-    #             continue
-    #         # Only look for flares in the same class.
-    #         if flare_class1 != flare_class2:
-    #             continue
-    #         time_end2 = row2["time_end"]
-    #         time_start2 = time_end2 - datetime.timedelta(1)
-    #         flares_overlap = (time_start1 <= time_start2 <= time_end1) or (
-    #                 time_start1 <= time_end2 <= time_end1)
-    #         if flares_overlap:
-    #             flare_matrix[index1][index2] = 1
-    #             flare["overlapping_flares"].append(f"{index2},{flare_class2}")
-
-    # with open("multiple_solar_events/overlapping_flares_same.csv", "w") as f:
-    #     writer = csv.DictWriter(f, fieldnames=["flare_index",
-    #                                            "overlapping_flares"])
-    #     writer.writeheader()
-    #     writer.writerows(multiple_flares)
-
-    # im = plt.imshow(flare_matrix, cmap="binary")
     #
-    # plt.colorbar(im)
-    # plt.title("Overlapping Flare Events (Same Classes)")
-    # plt.show()
-    # print("Multiple Flares", multiple_flares)
-    # multiple_flares_df = pd.DataFrame()
-    # for key, value in multiple_flares.items():
-    #     series = pd.Series(value, name=key)
-    #     multiple_flares_df = pd.concat([multiple_flares_df, series])
-    # print(multiple_flares_df)
-    # multiple_flares_df.to_csv("multiple_flares.csv")
-
-    # print("Time Start:", time_start)
-    # print("Time End:", time_end)
+    # fig.tight_layout()
+    # fig.show()
 
 
 if __name__ == "__main__":
