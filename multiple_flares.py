@@ -143,7 +143,8 @@ def main():
     # 3. For all other flares in the complete set:
     #    i. Get the other flare's range like above, then determine if both
     #    flares' ranges have any overlap -- if so, then append it to a list.
-    flare_info = pd.concat([mx_info], ignore_index=True)
+    flare_info = pd.concat([mx_info, bc_info], ignore_index=True)
+    # flare_info = pd.concat([mx_info], ignore_index=True)
     flare_info.drop("Unnamed: 0", axis=1, inplace=True)
 
     b_df = flare_info.loc[flare_info["xray_class"] == "B"]
@@ -156,25 +157,15 @@ Class C Flares Shape: {c_df.shape}
 Class M Flares Shape: {m_df.shape}
 Class X Flares Shape: {x_df.shape}"""
 
-    def info_to_data(info, data):
-        df = pd.DataFrame()
-        for index, row in info.iterrows():
-            timestamp = row["time_start"]
-            df_sort = data.iloc[
-                (data['T_REC'] - timestamp).abs().argsort()[:1]]
-            df = pd.concat([df, df_sort])
-        return df
-
-    b_data_df = info_to_data(b_df, bc_data)
-    c_data_df = info_to_data(c_df, bc_data)
-    m_data_df = info_to_data(m_df, mx_data)
-    x_data_df = info_to_data(x_df, mx_data)
-
     # MULTIPLE FLARES BELOW
+    flare_info = pd.concat([b_df, c_df, m_df, x_df])
+    flare_info.reset_index(inplace=True)
+    print(flare_info)
     flare_matrix = np.zeros(shape=(flare_info.shape[0], flare_info.shape[0]),
                             dtype=int)
     flare_coincidences_mix = [0 for _ in range(flare_info.shape[0])]
     flare_coincidences_same = [0 for _ in range(flare_info.shape[0])]
+    print(len(flare_coincidences_same))
 
     for index1, row1 in flare_info.iterrows():
         flare_class1 = row1["xray_class"]
@@ -192,15 +183,14 @@ Class X Flares Shape: {x_df.shape}"""
             flares_overlap = (time_start1 <= time_start2 <= time_end1) or (
                     time_start1 <= time_end2 <= time_end1)
             if flares_overlap:
-
-                if flare_class1 == flare_class2:
-                    if flare_class1 == "M":
-                        flare_matrix[index1][index2] = 1
-                    elif flare_class1 == "X":
-                        flare_matrix[index1][index2] = 2
-                    flare_coincidences_same[index1] += 1
-                else:
-                    flare_matrix[index1][index2] = 3
+                # if flare_class1 == flare_class2:
+                #     if flare_class1 == "M":
+                #         flare_matrix[index1][index2] = 1
+                #     elif flare_class1 == "B":
+                #         flare_matrix[index1][index2] = 2
+                #     flare_coincidences_same[index1] += 1
+                # else:
+                #     flare_matrix[index1][index2] = 3
                 flare_coincidences_mix[index1] += 1
 
     def plot_examples(data, colors):
@@ -210,68 +200,93 @@ Class X Flares Shape: {x_df.shape}"""
         colormaps = ListedColormap(colors)
         plt.figure(figsize=(16, 9))
         im = plt.imshow(data, interpolation='nearest', cmap=colormaps)
-        plt.title("Coinciding Flares (M and X Flares)")
-        labels = ["None", "M-M", "X-X", "M-X"]
+        plt.title("Coinciding Flares (M and B Flares)")
+        labels = ["None", "M-M", "B-B", "M-B"]
         patches = [matplotlib.patches.Patch(color=colors[i],
                                   label=labels[i]) for i in range(len(labels))]
         plt.legend(handles=patches, bbox_to_anchor=(1.05, 1), loc=2,
                    borderaxespad=0.)
         plt.show()
 
-    colors = ["white", "purple", "red", "green"]
-    plot_examples(np.triu(flare_matrix).transpose(), colors)
-
+    # colors = ["white", "purple", "red", "green"]
+    # plot_examples(np.triu(flare_matrix).transpose(), colors)
+    #
     # im = plt.imshow(flare_matrix, interpolation="nearest", cmap="binary")
     # plt.colorbar(im)
-    # plt.title("Overlapping Flare Events (M and X Flares)")
+    # plt.title("Overlapping Flare Events (M and B Flares)")
     # plt.show()
-
-    fig, ax = plt.subplots(1, 2, figsize=(16, 9))
-    mix_yticks = range(max(flare_coincidences_mix) + 1)
-    same_yticks = range(max(flare_coincidences_same) + 1)
-    ax[0].set_title(f"Coinciding Flares (M and X Flares Mix)")
-    ax[0].set_xlabel("Flare Index")
-    ax[0].set_ylabel("Number of Coincidental Flares")
-    ax[0].set_yticks(mix_yticks, mix_yticks)
-    # ax[1].text(400, max(flare_coincidences_mix) - 4, text)
-    ax[0].plot(range(flare_info.shape[0]), flare_coincidences_mix, color="y")
-    ax[1].set_title(f"Coinciding Flares (M and X Flares Same)")
-    ax[1].set_xlabel("Flare Index")
-    ax[1].set_ylabel("Number of Coincidental Flares")
-    ax[1].set_yticks(same_yticks, same_yticks)
-    ax[1].plot(range(flare_info.shape[0]), flare_coincidences_same, color="y")
-    # ax[1].text(400, max(flare_coincidences_mix) - 4, text)
-    fig.tight_layout()
-    fig.show()
-
-    # Plot PCA
-    # flare_dataframes = [b_data_df, c_data_df, m_data_df, x_data_df]
-    # flare_indices = [(0, 0), (0, 1), (1, 0), (1, 1)]
-    # fig, ax = plt.subplots(2, 2)
-    # pc_labels = [f"PC{i}" for i in range(1, 6 + 1)]
-    # for df, label, indices in zip(flare_dataframes, CLASS_LABELS, flare_indices):
-    #     i, j = indices
-    #     df.drop(["T_REC", "NOAA_AR"], axis=1, inplace=True)
-    #     pca = PCA(n_components=6)
-    #     pca.fit_transform(MinMaxScaler().fit_transform(df))
-    #     ev = pca.explained_variance_ratio_
-    #     ax[i, j].set_title(f"Class {label} PCA ({df.shape[0]} Flares)")
-    #     ax[i, j].set_xlabel("Principal Components")
-    #     ax[i, j].set_ylabel("Explained Variance Ratio")
-    #     ax[i, j].set_xticks(range(6), pc_labels, fontsize=8, rotation="vertical")
-    #     ax[i, j].bar(range(len(ev)), list(ev * 100),
-    #               align="center", color="y")
-    #     r = np.abs(pca.components_.T)
-    #     r /= r.sum(axis=0)
-    #     r = r.transpose()
-    #     pca_df = pd.DataFrame(r, columns=FLARE_PROPERTIES)
-    #     pca_df.index = pc_labels
-    #     print("Flare Class", label)
-    #     print(pca_df.T.to_latex())
     #
-    #
+    # fig, ax = plt.subplots(1, 2, figsize=(16, 9))
+    # mix_yticks = range(max(flare_coincidences_mix) + 1)
+    # same_yticks = range(max(flare_coincidences_same) + 1)
+    # ax[0].set_title(f"Coinciding Flares (M and B Flares Mix)")
+    # ax[0].set_xlabel("Flare Index")
+    # ax[0].set_ylabel("Number of Coincidental Flares")
+    # ax[0].set_yticks(mix_yticks, mix_yticks)
+    # # ax[1].text(400, max(flare_coincidences_mix) - 4, text)
+    # ax[0].plot(range(flare_info.shape[0]), flare_coincidences_mix, color="y")
+    # ax[1].set_title(f"Coinciding Flares (M and B Flares Same)")
+    # ax[1].set_xlabel("Flare Index")
+    # ax[1].set_ylabel("Number of Coincidental Flares")
+    # ax[1].set_yticks(same_yticks, same_yticks)
+    # ax[1].plot(range(flare_info.shape[0]), flare_coincidences_same, color="y")
     # fig.tight_layout()
     # fig.show()
+
+    def info_to_data(info, data):
+        df = pd.DataFrame()
+        for index, row in info.iterrows():
+            if flare_coincidences_mix[index] <= 0:
+            # if flare_coincidences_mix[index] > 0:
+                continue
+            timestamp = row["time_start"]
+            df_sort = data.iloc[
+                (data['T_REC'] - timestamp).abs().argsort()[:1]]
+            df = pd.concat([df, df_sort])
+        return df
+
+    b_data_df = info_to_data(b_df, bc_data)
+    c_data_df = info_to_data(c_df, bc_data)
+    m_data_df = info_to_data(m_df, mx_data)
+    x_data_df = info_to_data(x_df, mx_data)
+
+    # Plot PCA
+    flare_dataframes = [b_data_df, c_data_df, m_data_df, x_data_df]
+    flare_indices = [(0, 0), (0, 1), (1, 0), (1, 1)]
+    fig, ax = plt.subplots(2, 2)
+    for df, label, indices in zip(flare_dataframes, CLASS_LABELS, flare_indices):
+        i, j = indices
+        df.drop(["T_REC", "NOAA_AR"], axis=1, inplace=True)
+        if label == "X":
+            n = 13
+        else:
+            n = 17
+        pc_labels = [f"PC{i}" for i in range(1, n + 1)]
+        pca = PCA(n_components=n)
+        pca.fit_transform(MinMaxScaler().fit_transform(df))
+        ev = pca.explained_variance_ratio_
+        ax[i, j].set_title(f"Class {label} PCA ({df.shape[0]} Flares)")
+        ax[i, j].set_xlabel("Principal Components")
+        ax[i, j].set_ylabel("Explained Variance Ratio")
+        ax[i, j].set_xticks(range(n), pc_labels, fontsize=8, rotation="vertical")
+        ax[i, j].bar(range(len(ev)), list(ev * 100),
+                  align="center", color="y")
+        # r = np.abs(pca.components_.T)
+        # r /= r.sum(axis=0)
+        # r = r.transpose()
+        #
+        # pca_df = pd.DataFrame(r, columns=FLARE_PROPERTIES)
+        # pca_df.loc["Total", :] = pca_df.sum(axis=0)
+        # pca_df.index = pc_labels + ["Total"]
+        # print("Flare Class", label)
+        # print(pca_df.T.to_latex())
+
+        pca_df = pd.DataFrame(pca.explained_variance_ratio_, pc_labels)
+        pd.set_option('display.float_format', '{:.4f}'.format)
+        print(pca_df.to_latex())
+
+    fig.tight_layout()
+    fig.show()
 
 
 if __name__ == "__main__":
