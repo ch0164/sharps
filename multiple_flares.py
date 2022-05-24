@@ -257,10 +257,11 @@ Class X Flares Shape: {x_df.shape}"""
     for df, label, indices in zip(flare_dataframes, CLASS_LABELS, flare_indices):
         i, j = indices
         df.drop(["T_REC", "NOAA_AR"], axis=1, inplace=True)
-        if label == "X":
-            n = 13
-        else:
-            n = 17
+        # if label == "X":
+        #     n = 13
+        # else:
+        #     n = 17
+        n = 6
         pc_labels = [f"PC{i}" for i in range(1, n + 1)]
         pca = PCA(n_components=n)
         pca.fit_transform(MinMaxScaler().fit_transform(df))
@@ -271,19 +272,28 @@ Class X Flares Shape: {x_df.shape}"""
         ax[i, j].set_xticks(range(n), pc_labels, fontsize=8, rotation="vertical")
         ax[i, j].bar(range(len(ev)), list(ev * 100),
                   align="center", color="y")
-        # r = np.abs(pca.components_.T)
-        # r /= r.sum(axis=0)
-        # r = r.transpose()
-        #
-        # pca_df = pd.DataFrame(r, columns=FLARE_PROPERTIES)
-        # pca_df.loc["Total", :] = pca_df.sum(axis=0)
-        # pca_df.index = pc_labels + ["Total"]
-        # print("Flare Class", label)
-        # print(pca_df.T.to_latex())
+        r = np.abs(pca.components_.T)
+        r /= r.sum(axis=0)
+        r = r.transpose()
 
-        pca_df = pd.DataFrame(pca.explained_variance_ratio_, pc_labels)
-        pd.set_option('display.float_format', '{:.4f}'.format)
+        pca_df = pd.DataFrame(r, columns=FLARE_PROPERTIES)
+        total = []
+        for property in FLARE_PROPERTIES:
+            total.append(np.multiply(pca_df[property], pca.explained_variance_ratio_).sum())
+        # pca_df.loc["Total", :] = pca_df.sum(axis=0)
+        # print(len(pca_df.loc["Total", :]), len(pca.components_))
+        # pca_df.loc["Total", :].multiply(pca.components_)
+        # pca_df.index = pc_labels + ["Total"]
+        print("TOTAL", len(total), total)
+        pca_df = pca_df.T
+        pca_df["Total"] = total
+        print("Flare Class", label)
         print(pca_df.to_latex())
+        print("Flare Class", label, "Sum:", f"{pca_df['Total'].sum():.6f}")
+
+        # pca_df = pd.DataFrame(pca.explained_variance_ratio_, pc_labels)
+        # pd.set_option('display.float_format', '{:.4f}'.format)
+        # print(pca_df.to_latex())
 
     fig.tight_layout()
     fig.show()
