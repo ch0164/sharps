@@ -285,37 +285,40 @@ Class X Flares Shape: {x_df.shape}"""
     flare_dataframes = [b_data_df, c_data_df, m_data_df, x_data_df]
 
     # Plot PCA
-    data_df = info_to_data(info_df, pd.concat([bc_data, mx_data]))
-    data_df.reset_index(inplace=True)
-    print(data_df, data_df.columns)
-    n = 6
-    pc_labels = [f"PC{i}" for i in range(1, n + 1)]
-    pca = PCA(n_components=n)
-    flare_pca = data_df.drop(["xray_class", "T_REC", "NOAA_AR"], axis=1)
-    flare_pca = pca.fit_transform(MinMaxScaler().fit_transform(flare_pca))
-    pca_df = pd.DataFrame(data=flare_pca, columns=pc_labels)
-    print(pca_df, pca_df.columns)
-    pca_df["xray_class"] = pd.Series(data_df["xray_class"])
-
-    df = pca_df
-
-    # df = pd.concat([pca_df, data_df["xray_class"]], axis=1, ignore_index=True)
-    fig = px.scatter_3d(df, x="PC1", y="PC2", z="PC3", color="xray_class", title=f"PCA (All Flares)")
-    fig.write_html(f"pca/all_flares/pca_3d.html")
-
-
-    # for label, flare_df in zip(CLASS_LABELS, flare_dataframes):
-    #     n = 6
-    #     pc_labels = [f"PC{i}" for i in range(1, n + 1)]
-    #     pca = PCA(n_components=n)
-    #     flare_pca = flare_df.drop(["xray_class", "T_REC", "NOAA_AR"], axis=1)
-    #     flare_pca = pca.fit_transform(MinMaxScaler().fit_transform(flare_pca))
-    #     pca_df = pd.DataFrame(data=flare_pca, columns=pc_labels)
+    # data_df = info_to_data(info_df, pd.concat([bc_data, mx_data]))
+    # data_df.reset_index(inplace=True)
+    # print(data_df, data_df.columns)
+    # n = 6
+    # pc_labels = [f"PC{i}" for i in range(1, n + 1)]
+    # pca = PCA(n_components=n)
+    # flare_pca = data_df.drop(["xray_class", "T_REC", "NOAA_AR"], axis=1)
+    # flare_pca = pca.fit_transform(MinMaxScaler().fit_transform(flare_pca))
+    # pca_df = pd.DataFrame(data=flare_pca, columns=pc_labels)
+    # print(pca_df, pca_df.columns)
+    # pca_df["xray_class"] = pd.Series(data_df["xray_class"])
     #
-    #     print(pca_df, pca_df.columns)
+    # df = pca_df
     #
-    #     fig = px.scatter_3d(pca_df, x="PC1", y="PC2", z="PC3", color="PC4", title=f"Class {label} PCA")
-    #     fig.write_html(f"pca/all_flares/{label}_3d.html")
+    # # df = pd.concat([pca_df, data_df["xray_class"]], axis=1, ignore_index=True)
+    # ev = pca.explained_variance_ratio_[0] + pca.explained_variance_ratio_[1] + pca.explained_variance_ratio_[2]
+    # fig = px.scatter_3d(df, x="PC1", y="PC2", z="PC3", color="xray_class", title=f"PCA (All Flares)\nTotal Explained Variance: {ev}")
+    # fig.write_html(f"pca/all_flares/pca_3d.html")
+
+
+    for label, flare_df in zip(CLASS_LABELS, flare_dataframes):
+        n = 6
+        pc_labels = [f"PC{i}" for i in range(1, n + 1)]
+        pca = PCA(n_components=n)
+        flare_pca = flare_df.drop(["xray_class", "T_REC", "NOAA_AR"], axis=1)
+        flare_pca = pca.fit_transform(MinMaxScaler().fit_transform(flare_pca))
+        pca_df = pd.DataFrame(data=flare_pca, columns=pc_labels)
+
+        print(pca_df, pca_df.columns)
+
+        ev = pca.explained_variance_ratio_[0] + pca.explained_variance_ratio_[1] + pca.explained_variance_ratio_[2] + pca.explained_variance_ratio_[3]
+
+        fig = px.scatter_3d(pca_df, x="PC1", y="PC2", z="PC3", color="PC4", title=f"Class {label} PCA\nTotal Explained Variance: {ev}")
+        fig.write_html(f"pca/all_flares/{label}_3d.html")
 
 
 
