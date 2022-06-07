@@ -2,6 +2,7 @@ import datetime
 from datetime import datetime as dt_obj
 import matplotlib.pylab as plt
 import pandas as pd
+from scipy.stats import entropy
 
 FLARE_PROPERTIES = [
     'ABSNJZH',
@@ -55,17 +56,17 @@ def classify_flare(magnitude):
 def main():
     # Choose which flares to plot.
     # ABC Flares
-    bc_info_df = pd.read_csv("../../Downloads/ABC_list.txt")
-    bc_properties_df = pd.read_csv("Data_ABC.csv")
-    # bc_info_df = None
-    # bc_properties_df = None
+    # bc_info_df = pd.read_csv("../../Downloads/ABC_list.txt")
+    # bc_properties_df = pd.read_csv("Data_ABC.csv")
+    bc_info_df = None
+    bc_properties_df = None
     # MX Flares
     mx_info_df = pd.read_csv("MX_list.txt")
     mx_properties_df = pd.read_csv("Data_MX.csv")
-    mx_info_df = None
-    mx_properties_df = None
+    # mx_info_df = None
+    # mx_properties_df = None
 
-    flare_class = "BC"
+    flare_class = "X"
 
     info_df = pd.concat([bc_info_df, mx_info_df])
     info_df.reset_index(inplace=True)
@@ -77,9 +78,10 @@ def main():
     info_df = info_df.sample(frac=1, random_state=10)
 
     info_df["xray_class"] = info_df["xray_class"].apply(classify_flare)
+    info_df = info_df.loc[info_df["xray_class"] == "X"]
 
     # Define input for flare.
-    time_range = 48  # Valid: 1 to 48 hours
+    time_range = 24  # Valid: 1 to 48 hours
 
     # Convert time strings to datetime objects for cleaned info data.
     for time_string in ["time_start", "time_peak", "time_end"]:
@@ -128,41 +130,49 @@ def main():
     print(series_df)
 
     # Plot specified flare properties over the specified time.
-    fig, ax = plt.subplots(6, 3, figsize=(18, 20))
-    fig.suptitle(f"{flare_class} Flares (Mean {time_range}h Time Series)", fontsize=24)
-    row, col = 0, 0
-    i = 0
-    for flare_property in FLARE_PROPERTIES:
-        i += 1
-        print(f"{i}/{len(FLARE_PROPERTIES)}")
-        if row == 0 and col == 1:
-            col = 2
-
-        # for df, flare_class in dataframes:
-        #     if "B" in flare_class:
-        #         color = "c"
-        #     elif "C" in flare_class:
-        #         color = "g"
-        #     elif "M" in flare_class:
-        #         color = "orange"
-        #     else:
-        #         color = "r"
-        #     ax[row, col].plot(range(series_df.shape[0]), series_df[flare_property])
-
-        ax[row, col].plot(range(len(series_df[flare_property])),
-                          series_df[flare_property])
-        ax[row, col].set_ylabel(flare_property)
-        ax[row, col].set_title(flare_property)
-
-        col += 1
-        if col == 3:
-            col = 0
-            row += 1
-
-    fig.tight_layout()
-    fig.show()
-    fig.savefig(f"time_series/{time_range}h/{flare_class.lower()}_flares_mean")
-
+    # fig, ax = plt.subplots(6, 3, figsize=(18, 20))
+    # fig.suptitle(f"{flare_class} Flares (Mean {time_range}h Time Series)", fontsize=24)
+    # row, col = 0, 0
+    # i = 0
+    # for flare_property in FLARE_PROPERTIES:
+    #     i += 1
+    #     # print(f"{i}/{len(FLARE_PROPERTIES)}")
+    #     print(flare_property, "&", series_df[flare_property].value_counts(), r"\\")
+    #     if row == 0 and col == 1:
+    #         col = 2
+    #
+    #     # for df, flare_class in dataframes:
+    #     #     if "B" in flare_class:
+    #     #         color = "c"
+    #     #     elif "C" in flare_class:
+    #     #         color = "g"
+    #     #     elif "M" in flare_class:
+    #     #         color = "orange"
+    #     #     else:
+    #     #         color = "r"
+    #     #     ax[row, col].plot(range(series_df.shape[0]), series_df[flare_property])
+    #
+    #
+    #
+    #     ax[row, col].plot(range(len(series_df[flare_property])),
+    #                       series_df[flare_property])
+    #     ax[row, col].set_ylabel(flare_property)
+    #     ax[row, col].set_title(flare_property)
+    #
+    #     col += 1
+    #     if col == 3:
+    #         col = 0
+    #         row += 1
+    #
+    # fig.tight_layout()
+    # fig.show()
+    # fig.savefig(f"time_series/{time_range}h/{flare_class.lower()}_flares_mean")
+    df = series_df.loc[:, FLARE_PROPERTIES]
+    cm = df.corr()
+    sns.heatmap(cm, annot=True, cmap="Blues", cbar=False, fmt="d",
+                square=True, xticklabels=CLASS_LABELS, yticklabels=CLASS_LABELS)
+    plt.title(f"{flare_class} Flares (Mean {time_range}h Time Series)")
+    plt.show()
 
 if __name__ == "__main__":
     main()

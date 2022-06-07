@@ -86,7 +86,9 @@ def main():
     mx_properties_df = pd.read_csv("Data_MX.csv")
 
     info_df = pd.read_csv("all_flares.txt")
-    info_df.drop(["hec_id", "lat_hg", "long_hg", "long_carr", "optical_class"], axis=1, inplace=True)
+    # info_df = pd.concat([abc_info_df, mx_info_df])
+    # info_df.drop(["hec_id", "lat_hg", "long_hg", "long_carr", "optical_class"], axis=1, inplace=True)
+
 
     # Convert time strings to datetime objects for cleaned info data.
     for time_string in ["time_start", "time_peak", "time_end"]:
@@ -103,38 +105,49 @@ def main():
     info_df["xray_class"] = \
         info_df["xray_class"].apply(classify_flare)
 
-    # Get B and C class flares, round down their minutes.
-    b_df = info_df.loc[info_df["xray_class"] == "B"]
-    c_df = info_df.loc[info_df["xray_class"] == "C"]
+    # Partition the flares into their active regions.
+    values, counts = np.unique(info_df["nar"], return_counts=True)
+    value_counts = [(value, count) for value, count in zip(values, counts)]
+    value_counts = sorted(value_counts, key=lambda value_count: value_count[1], reverse=True)
+    local_info_dataframes = {}
+    for value, count in value_counts:
+        if count > 1:
+            local_info_dataframes[value] = info_df.loc[info_df["nar"] == value]
+    # for value, count in value_counts:
+    #     print(value, count)
 
-    bc_info = pd.concat([b_df, c_df])
-    bc_info["time_start"] = \
-        bc_info["time_start"].apply(floor_minute)
+    # Get B and C class flares, round down their minutes.
+    # b_df = info_df.loc[info_df["xray_class"] == "B"]
+    # c_df = info_df.loc[info_df["xray_class"] == "C"]
+    #
+    # bc_info = pd.concat([b_df, c_df])
+    # bc_info["time_start"] = \
+    #     bc_info["time_start"].apply(floor_minute)
 
     # Find the respective timestamp in the ABC data file.
-    bc_data = pd.DataFrame()
-    for index, row in bc_info.iterrows():
-        timestamp = row["time_start"]
-        bc_series = abc_properties_df.loc[
-            abc_properties_df["T_REC"] == timestamp].head(1)
-        # bc_series.insert(0, "CLASS", row["xray_class"])
-        bc_data = pd.concat([bc_data, bc_series])
+    # bc_data = pd.DataFrame()
+    # for index, row in bc_info.iterrows():
+    #     timestamp = row["time_start"]
+    #     bc_series = abc_properties_df.loc[
+    #         abc_properties_df["T_REC"] == timestamp].head(1)
+    #     # bc_series.insert(0, "CLASS", row["xray_class"])
+    #     bc_data = pd.concat([bc_data, bc_series])
 
     # Get M and X class flares, round down their minutes.
-    m_df = info_df.loc[info_df["xray_class"] == "M"]
-    x_df = info_df.loc[info_df["xray_class"] == "X"]
-    mx_info = pd.concat([m_df, x_df])
-    mx_info["time_start"] = \
-        mx_info["time_start"].apply(floor_minute)
+    # m_df = info_df.loc[info_df["xray_class"] == "M"]
+    # x_df = info_df.loc[info_df["xray_class"] == "X"]
+    # mx_info = pd.concat([m_df, x_df])
+    # mx_info["time_start"] = \
+    #     mx_info["time_start"].apply(floor_minute)
 
     # Find the respective timestamp in the MX data file.
-    mx_data = pd.DataFrame()
-    for index, row in mx_info.iterrows():
-        timestamp = row["time_start"]
-        mx_series = mx_properties_df.loc[
-            abc_properties_df["T_REC"] == timestamp].head(1)
-        # mx_series.insert(0, "CLASS", row["xray_class"])
-        mx_data = pd.concat([mx_data, mx_series])
+    # mx_data = pd.DataFrame()
+    # for index, row in mx_info.iterrows():
+    #     timestamp = row["time_start"]
+    #     mx_series = mx_properties_df.loc[
+    #         abc_properties_df["T_REC"] == timestamp].head(1)
+    #     # mx_series.insert(0, "CLASS", row["xray_class"])
+    #     mx_data = pd.concat([mx_data, mx_series])
 
     # Find timepoints where multiple flares occur in complete set,
     # regardless of flare class.
@@ -145,29 +158,29 @@ def main():
     #    i. Get the other flare's range like above, then determine if both
     #    flares' ranges have any overlap -- if so, then append it to a list.
 
-    flare_info = pd.concat([mx_info, bc_info], ignore_index=True)
+    # flare_info = pd.concat([mx_info, bc_info], ignore_index=True)
     # flare_info = pd.concat([mx_info], ignore_index=True)
     # flare_info.drop("Unnamed: 0", axis=1, inplace=True)
 
-    b_df = flare_info.loc[flare_info["xray_class"] == "B"]
-    c_df = flare_info.loc[flare_info["xray_class"] == "C"]
-    m_df = flare_info.loc[flare_info["xray_class"] == "M"]
-    x_df = flare_info.loc[flare_info["xray_class"] == "X"]
-
-    print("B Class Flares Size:", b_df.shape)
-    print("C Class Flares Size:", c_df.shape)
-    print("M Class Flares Size:", m_df.shape)
-    print("X Class Flares Size:", x_df.shape)
-
-    text = f"""Class B Flares Shape: {b_df.shape}
-Class C Flares Shape: {c_df.shape}
-Class M Flares Shape: {m_df.shape}
-Class X Flares Shape: {x_df.shape}"""
+#     b_df = flare_info.loc[flare_info["xray_class"] == "B"]
+#     c_df = flare_info.loc[flare_info["xray_class"] == "C"]
+#     m_df = flare_info.loc[flare_info["xray_class"] == "M"]
+#     x_df = flare_info.loc[flare_info["xray_class"] == "X"]
+#
+#     print("B Class Flares Size:", b_df.shape)
+#     print("C Class Flares Size:", c_df.shape)
+#     print("M Class Flares Size:", m_df.shape)
+#     print("X Class Flares Size:", x_df.shape)
+#
+#     text = f"""Class B Flares Shape: {b_df.shape}
+# Class C Flares Shape: {c_df.shape}
+# Class M Flares Shape: {m_df.shape}
+# Class X Flares Shape: {x_df.shape}"""
 
     # MULTIPLE FLARES BELOW
-    flare_info = pd.concat([b_df, c_df, m_df, x_df])
-    flare_info.reset_index(inplace=True)
-    print(flare_info)
+    # flare_info = pd.concat([b_df, c_df, m_df, x_df])
+    # flare_info.reset_index(inplace=True)
+    # print(flare_info)
     # flare_matrix = np.zeros(shape=(flare_info.shape[0], flare_info.shape[0]),
     #                         dtype=int)
     #
@@ -182,6 +195,91 @@ Class X Flares Shape: {x_df.shape}"""
             return 2
         else:
             return 3
+
+    def info_to_data(info, data):
+        df = pd.DataFrame()
+        for index, row in info.iterrows():
+            # if flare_coincidences_mix[index] <= 0:
+            # if flare_coincidences_mix[index] > 0:
+            #     continue
+            timestamp = row["time_start"]
+            df_sort = data.iloc[
+                (data['T_REC'] - timestamp).abs().argsort()[:1]]
+            df_sort.insert(0, "xray_class", row["xray_class"])
+            # df_sort["xray_class"] = row["xray_class"]
+            df = pd.concat([df, df_sort])
+        df.reset_index(inplace=True)
+        df.drop("index", axis=1, inplace=True)
+        return df
+
+    data_df = pd.concat([abc_properties_df, mx_properties_df])
+
+    print(data_df)
+    local_data_dataframes = {}
+    local_count = len(local_info_dataframes.keys())
+    i = 1
+    for nar, df in local_info_dataframes.items():
+        print(f"{i}/{local_count}")
+        local_data_dataframes[nar] = info_to_data(df, data_df)
+        i += 1
+
+    flare_coincidences = {}
+    flare_matrix = np.zeros((4, 4), dtype=int)
+    no_coincidences_df = pd.DataFrame()
+    for nar, df in local_data_dataframes.items():
+        for index1, row1 in df.iterrows():
+            flare_class1 = row1["xray_class"]
+            time_end1 = row1["T_REC"]
+            time_start1 = time_end1 - datetime.timedelta(1)
+            for index2, row2 in df.iterrows():
+                flare_class2 = row2["xray_class"]
+                # Don't count the same flare.
+                if index1 == index2:
+                    continue
+                # Only look for flares in the same class.
+                time_end2 = row2["T_REC"]
+                time_start2 = time_end2 - datetime.timedelta(1)
+                # flares_overlap = (time_start1 <= time_start2 <= time_end1) or (
+                #         time_start1 <= time_end2 <= time_end1)
+                flares_overlap = time_start1 <= time_start2 <= time_end1
+                if flares_overlap:
+                    if nar not in flare_coincidences:
+                        flare_coincidences[nar] = 1
+                    else:
+                        flare_coincidences[nar] += 1
+                    flare_matrix[class_to_num(flare_class1)][class_to_num(flare_class2)] += 1
+                else:
+                    if time_start1 <= time_end2 <= time_end1:
+                        continue
+                    else:
+                        no_coincidences_df = pd.concat([no_coincidences_df, row1])
+    print(no_coincidences_df)
+    x = len(local_data_dataframes)
+    print("Total Count:", x * x - x)
+    flare_coincidences = sorted(flare_coincidences.items(), key=lambda x: x[0])
+    flare_coincidences_dict = {}
+    for k, v in flare_coincidences:
+        flare_coincidences_dict[k] = [v]
+    print(flare_coincidences)
+    print(flare_matrix)
+
+    sns.heatmap(flare_matrix, annot=True, cmap="Blues", cbar=False, fmt="d",
+                square=True, xticklabels=CLASS_LABELS, yticklabels=CLASS_LABELS)
+    plt.title("Flare Coincidence Confusion Matrix - Summed Individual ARs")
+    plt.show()
+
+    print(flare_coincidences_dict)
+    coincidence_df = pd.DataFrame.from_dict(flare_coincidences_dict, orient="index", columns=["counts"])
+    coincidence_df.index.names = ["nar"]
+    print(coincidence_df.to_latex())
+    exit(1)
+
+
+    # b_data_df = info_to_data(b_df, bc_data)
+    # c_data_df = info_to_data(c_df, bc_data)
+    # m_data_df = info_to_data(m_df, mx_data)
+    # x_data_df = info_to_data(x_df, mx_data)
+    # flare_dataframes = [b_data_df, c_data_df, m_data_df, x_data_df]
 
     # flare_coincidences_mix = [0 for _ in range(flare_info.shape[0])]
     # flare_coincidences_same = [0 for _ in range(flare_info.shape[0])]
@@ -264,26 +362,6 @@ Class X Flares Shape: {x_df.shape}"""
     # fig.tight_layout()
     # fig.show()
 
-    def info_to_data(info, data):
-        df = pd.DataFrame()
-        for index, row in info.iterrows():
-            # if flare_coincidences_mix[index] <= 0:
-            # if flare_coincidences_mix[index] > 0:
-            #     continue
-            timestamp = row["time_start"]
-            df_sort = data.iloc[
-                (data['T_REC'] - timestamp).abs().argsort()[:1]]
-            df_sort.insert(0, "xray_class", row["xray_class"])
-            # df_sort["xray_class"] = row["xray_class"]
-            df = pd.concat([df, df_sort])
-        return df
-
-    b_data_df = info_to_data(b_df, bc_data)
-    c_data_df = info_to_data(c_df, bc_data)
-    m_data_df = info_to_data(m_df, mx_data)
-    x_data_df = info_to_data(x_df, mx_data)
-    flare_dataframes = [b_data_df, c_data_df, m_data_df, x_data_df]
-
     # Plot PCA
     # data_df = info_to_data(info_df, pd.concat([bc_data, mx_data]))
     # data_df.reset_index(inplace=True)
@@ -305,24 +383,20 @@ Class X Flares Shape: {x_df.shape}"""
     # fig.write_html(f"pca/all_flares/pca_3d.html")
 
 
-    for label, flare_df in zip(CLASS_LABELS, flare_dataframes):
-        n = 6
-        pc_labels = [f"PC{i}" for i in range(1, n + 1)]
-        pca = PCA(n_components=n)
-        flare_pca = flare_df.drop(["xray_class", "T_REC", "NOAA_AR"], axis=1)
-        flare_pca = pca.fit_transform(MinMaxScaler().fit_transform(flare_pca))
-        pca_df = pd.DataFrame(data=flare_pca, columns=pc_labels)
-
-        print(pca_df, pca_df.columns)
-
-        ev = pca.explained_variance_ratio_[0] + pca.explained_variance_ratio_[1] + pca.explained_variance_ratio_[2] + pca.explained_variance_ratio_[3]
-
-        fig = px.scatter_3d(pca_df, x="PC1", y="PC2", z="PC3", color="PC4", title=f"Class {label} PCA\nTotal Explained Variance: {ev}")
-        fig.write_html(f"pca/all_flares/{label}_3d.html")
-
-
-
-
+    # for label, flare_df in zip(CLASS_LABELS, flare_dataframes):
+    #     n = 6
+    #     pc_labels = [f"PC{i}" for i in range(1, n + 1)]
+    #     pca = PCA(n_components=n)
+    #     flare_pca = flare_df.drop(["xray_class", "T_REC", "NOAA_AR"], axis=1)
+    #     flare_pca = pca.fit_transform(MinMaxScaler().fit_transform(flare_pca))
+    #     pca_df = pd.DataFrame(data=flare_pca, columns=pc_labels)
+    #
+    #     print(pca_df, pca_df.columns)
+    #
+    #     ev = pca.explained_variance_ratio_[0] + pca.explained_variance_ratio_[1] + pca.explained_variance_ratio_[2] + pca.explained_variance_ratio_[3]
+    #
+    #     fig = px.scatter_3d(pca_df, x="PC1", y="PC2", z="PC3", color="PC4", title=f"Class {label} PCA\nTotal Explained Variance: {ev}")
+    #     fig.write_html(f"pca/all_flares/{label}_3d.html")
 
 
     # flare_indices = [(0, 0), (0, 1), (1, 0), (1, 1)]
