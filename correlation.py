@@ -16,10 +16,8 @@ import matplotlib.dates as mdates
 import seaborn as sns
 import sunpy.map
 import sunpy.io
-from IPython.display import Image
 import datetime as dt
 from sklearn.linear_model import LinearRegression
-import numpy.typing as npt
 import pandas as pd
 from sklearn.preprocessing import PolynomialFeatures, MinMaxScaler
 import csv
@@ -98,30 +96,50 @@ def main():
     info_df["xray_class"] = \
         info_df["xray_class"].apply(classify_flare)
 
-    def info_to_data(info, data):
-        df = pd.DataFrame()
-        for index, row in info.iterrows():
-            # if flare_coincidences_mix[index] <= 0:
-            # if flare_coincidences_mix[index] > 0:
-            #     continue
-            print(row)
-            timestamp = row["time_start"]
-            df_sort = data.iloc[
-                (data['T_REC'] - timestamp).abs().argsort()[:1]]
-            df_sort.insert(0, "xray_class", row["xray_class"])
-            # df_sort["xray_class"] = row["xray_class"]
-            df = pd.concat([df, df_sort])
-            print(f"{index}/{info.shape[0]}", df)
-            if index == 30:
-                break
-        df.reset_index(inplace=True)
-        df.drop("index", axis=1, inplace=True)
-        return df
+    bc_info = pd.concat([
+        info_df.loc[info_df["xray_class"] == "B"],
+        info_df.loc[info_df["xray_class"] == "C"]
+    ])
 
-    df = info_to_data(info_df, properties_df)
-    df.drop(["xray_class", "T_REC"], axis=1, inplace=True)
-    cm = df.corr()
-    print(cm)
+    mx_info = pd.concat([
+        info_df.loc[info_df["xray_class"] == "M"],
+        info_df.loc[info_df["xray_class"] == "X"]
+    ])
+
+    for info_df, label in [(bc_info, "BC"), (mx_info, "MX")]:
+        info_df.reset_index(inplace=True)
+        print(info_df)
+
+        def info_to_data(info, data):
+            df = pd.DataFrame()
+            print(info)
+            for index, row in info.iterrows():
+                print(f"{index}/{info.shape[0]}")
+                # if flare_coincidences_mix[index] <= 0:
+                # if flare_coincidences_mix[index] > 0:
+                #     continue
+                timestamp = row["time_start"]
+                df_sort = data.iloc[
+                    (data['T_REC'] - timestamp).abs().argsort()[:1]]
+                df_sort.insert(0, "xray_class", row["xray_class"])
+                # df_sort["xray_class"] = row["xray_class"]
+                df = pd.concat([df, df_sort])
+            df.reset_index(inplace=True)
+            df.drop("index", axis=1, inplace=True)
+            return df
+
+        df = info_to_data(info_df, properties_df)
+        df = df.drop(["xray_class", "T_REC", "NOAA_AR"], axis=1)
+        cm = df.corr()
+        print(cm)
+
+        plt.rcParams["figure.figsize"] = (19, 11)
+        sns.heatmap(cm, annot=True, cmap="RdYlBu", cbar=True, fmt=".2f",
+                    square=True, xticklabels=FLARE_PROPERTIES, yticklabels=FLARE_PROPERTIES)
+        plt.title(f"{label} Flare Correlation Matrix (Time Start) - Exhaustive")
+        plt.tight_layout()
+        plt.show()
+
 
 if __name__ == "__main__":
     main()
