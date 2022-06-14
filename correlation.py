@@ -43,6 +43,21 @@ FLARE_PROPERTIES = [
     'USFLUX',
 ]
 
+to_drop = [
+    'MEANGBZ',
+    'MEANGBH',
+    'TOTUSJZ',
+    'TOTUSJH',
+    'SAVNCPP',
+    'MEANPOT',
+    'TOTPOT',
+    'MEANSHR',
+    'SHRGT45',
+    'AREA_ACR'
+]
+
+UNIQUE_PROPERTIES = list(set(FLARE_PROPERTIES) - set(to_drop))
+
 CLASS_LABELS = ["B", "C", "M", "X"]
 
 
@@ -75,7 +90,9 @@ def floor_minute(time, cadence=12):
 
 def main():
     abc_properties_df = pd.read_csv("Data_ABC.csv")
+    abc_properties_df.drop(to_drop, inplace=True, axis=1)
     mx_properties_df = pd.read_csv("Data_MX.csv")
+    mx_properties_df.drop(to_drop, inplace=True, axis=1)
 
     info_df = pd.read_csv("all_flares.txt")
     info_df.drop(["hec_id", "lat_hg", "long_hg", "long_carr", "optical_class"], axis=1, inplace=True)
@@ -96,49 +113,132 @@ def main():
     info_df["xray_class"] = \
         info_df["xray_class"].apply(classify_flare)
 
+    b_df = info_df.loc[info_df["xray_class"] == "B"]
+    c_df = info_df.loc[info_df["xray_class"] == "C"]
+    m_df = info_df.loc[info_df["xray_class"] == "M"]
+    x_df = info_df.loc[info_df["xray_class"] == "X"]
+
+    single_dfs = [(x_df, "X"), (m_df, "M"), (b_df, "B"), (c_df, "C")]
+
     bc_info = pd.concat([
-        info_df.loc[info_df["xray_class"] == "B"],
-        info_df.loc[info_df["xray_class"] == "C"]
+        b_df,
+        c_df
     ])
-
     mx_info = pd.concat([
-        info_df.loc[info_df["xray_class"] == "M"],
-        info_df.loc[info_df["xray_class"] == "X"]
+        m_df,
+        x_df
     ])
+    bx_info = pd.concat([
+        b_df,
+        x_df
+    ])
+    pair_dfs = [(mx_info, "MX"), (bx_info, "BX"), (bc_info, "BC")]
 
-    for info_df, label in [(bc_info, "BC"), (mx_info, "MX")]:
+    dfs = single_dfs + pair_dfs + [(pd.concat([bc_info, mx_info]), "BCMX")]
+
+    info_df.reset_index(inplace=True)
+    for info_df, label in dfs:
+        series_df = pd.DataFrame()
         info_df.reset_index(inplace=True)
         print(info_df)
 
-        def info_to_data(info, data):
-            df = pd.DataFrame()
-            print(info)
-            for index, row in info.iterrows():
-                print(f"{index}/{info.shape[0]}")
-                # if flare_coincidences_mix[index] <= 0:
-                # if flare_coincidences_mix[index] > 0:
-                #     continue
-                timestamp = row["time_start"]
-                df_sort = data.iloc[
-                    (data['T_REC'] - timestamp).abs().argsort()[:1]]
-                df_sort.insert(0, "xray_class", row["xray_class"])
-                # df_sort["xray_class"] = row["xray_class"]
-                df = pd.concat([df, df_sort])
-            df.reset_index(inplace=True)
-            df.drop("index", axis=1, inplace=True)
-            return df
+        for index, row in info_df.iterrows():
+            print(index, "/", info_df.shape[0])
+            end_timestamp = row["time_start"]
+            if end_timestamp < pd.Timestamp(2010, 5, 1):
+                continue
+            flare_class = row["xray_class"]
+            if flare_class in ["B", "C"]:
+                properties = abc_properties_df
+            else:
+                properties = mx_properties_df
 
-        df = info_to_data(info_df, properties_df)
-        df = df.drop(["xray_class", "T_REC", "NOAA_AR"], axis=1)
-        cm = df.corr()
-        print(cm)
+            start_timestamp = end_timestamp - datetime.timedelta(0, 3600 * 6)
+            df_start = properties.iloc[
+                (properties['T_REC'] - start_timestamp).abs().argsort()[:1]]
+            df_end = properties.iloc[
+                (properties['T_REC'] - end_timestamp).abs().argsort()[:1]]
+            start_index = df_start.iloc[0].name
+            end_index = df_end.iloc[0].name
+            df = properties_df[start_index:end_index].drop(
+                ["T_REC", "NOAA_AR"], axis=1)
+            # dataframes.append((range_df, row["xray_class"]))
+            mean_df = df.mean().to_frame().T
+            if mean_df.isnull().values.any():
+                continue
+            print(mean_df)
 
-        plt.rcParams["figure.figsize"] = (19, 11)
-        sns.heatmap(cm, annot=True, cmap="RdYlBu", cbar=True, fmt=".2f",
-                    square=True, xticklabels=FLARE_PROPERTIES, yticklabels=FLARE_PROPERTIES)
-        plt.title(f"{label} Flare Correlation Matrix (Time Start) - Exhaustive")
-        plt.tight_layout()
-        plt.show()
+            mean_df["xray_class"] = [flare_class]
+
+            series_df = pd.concat([
+                series_df, mean_df], ignore_index=True)
+
+            print(series_df)
+
+        series_df.dropna(inplace=True)
+        series_df.reset_index(inplace=True)
+        series_df.drop("index", axis=1, inplace=True)
+        print(series_df)
+
+        # n = 7
+        # pc_labels = [f"PC{i}" for i in range(1, n + 1)]
+        # pca = PCA(n_components=n)
+        # flare_pca = pca.fit_transform(MinMaxScaler().fit_transform(series_df))
+        # pca_df = pd.DataFrame(data=flare_pca, columns=pc_labels)
+        # print(pca_df, pca_df.columns)
+        # pca_df["xray_class"] = pd.Series(data_df["xray_class"])
+
+        if len(label) <= 1:
+            color = "ABSNJZH"
+        else:
+            color = "xray_class"
+        fig = px.scatter_3d(series_df, x="USFLUX", y="R_VALUE", z="MEANGAM", color=color,
+                            title=f"Non-Correlative Parameters for {label} Class Flares ({series_df.shape[0]} Flares)")
+        fig.write_html(f"correlation/6h/{label}_mean_3d.html")
+
+
+        # def info_to_data(info, data):
+        #     series_df = pd.DataFrame()
+        #     df = pd.DataFrame()
+        #     print(info)
+        #     for index, row in info.iterrows():
+        #         noaa_ar = info_df["nar"][index]
+        #         print(f"{index}/{info.shape[0]}")
+        #         end_timestamp = row["time_start"]
+        #         start_timestamp = end_timestamp - datetime.timedelta(1)
+        #         df = data[(data['T_REC'] < start_timestamp) & (data['T_REC'] > end_timestamp)]
+        #         print(df)
+        #         exit(1)
+        #         series = data["T_REC"].between_time(start_timestamp, end_timestamp)
+        #         print(series)
+            # df.reset_index(inplace=True)
+            # df.drop("index", axis=1, inplace=True)
+            # return series_df
+
+
+        # df = info_to_data(info_df, properties_df)
+        # df2 = df.copy(deep=True)
+        # df = df.drop(["xray_class", "T_REC", "NOAA_AR"], axis=1)
+        # cm = df.corr().abs()
+        # upper_tri = cm.where(
+        #     np.triu(np.ones(cm.shape), k=1).astype(np.bool))
+        # to_drop = [column for column in upper_tri.columns if
+        #            any(upper_tri[column] >= 0.75)]
+        # print(to_drop)
+        # df1 = df2.drop(to_drop, axis=1)
+        # df1.to_csv(f"correlation/6h/{label}_reduced.csv")
+        # df1 = df1.drop(["xray_class", "T_REC", "NOAA_AR"], axis=1)
+        # cm = df1.corr()
+        # print(cm)
+        #
+        # properties = list(set(FLARE_PROPERTIES) - set(to_drop))
+        #
+        # plt.rcParams["figure.figsize"] = (19, 11)
+        # sns.heatmap(cm, annot=True, cmap="RdYlBu", cbar=True, fmt=".2f",
+        #             square=True, xticklabels=properties, yticklabels=properties)
+        # plt.title(f"{label} Flare Correlation Matrix (Time Start) - Exhaustive")
+        # plt.tight_layout()
+        # plt.show()
 
 
 if __name__ == "__main__":

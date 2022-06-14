@@ -3,6 +3,7 @@ from datetime import datetime as dt_obj
 import matplotlib.pylab as plt
 import pandas as pd
 from scipy.stats import entropy
+import seaborn as sns
 
 FLARE_PROPERTIES = [
     'ABSNJZH',
@@ -68,17 +69,17 @@ def main():
 
     flare_class = "X"
 
-    info_df = pd.concat([bc_info_df, mx_info_df])
-    info_df.reset_index(inplace=True)
-    info_df.drop("index", axis=1, inplace=True)
+    # info_df = pd.concat([bc_info_df, mx_info_df])
+    # info_df.reset_index(inplace=True)
+    # info_df.drop("index", axis=1, inplace=True)
     properties_df = pd.concat([bc_properties_df, mx_properties_df])
     properties_df.reset_index(inplace=True)
     properties_df.drop("index", axis=1, inplace=True)
 
-    info_df = info_df.sample(frac=1, random_state=10)
+    info_df = pd.read_csv("all_flares.txt")
 
     info_df["xray_class"] = info_df["xray_class"].apply(classify_flare)
-    info_df = info_df.loc[info_df["xray_class"] == "X"]
+    # info_df = info_df.loc[info_df["xray_class"] == "X"]
 
     # Define input for flare.
     time_range = 24  # Valid: 1 to 48 hours
@@ -100,6 +101,7 @@ def main():
     dataframes = []
     series_df = pd.DataFrame()
     for flare_index, row in info_df.iterrows():
+        print(flare_index, info_df.shape[0])
         # Find NOAA AR number and timestamp from user input in info dataframe.
         noaa_ar = info_df["nar"][flare_index]
         timestamp = floor_minute(info_df["time_start"][flare_index])
@@ -169,10 +171,11 @@ def main():
     # fig.savefig(f"time_series/{time_range}h/{flare_class.lower()}_flares_mean")
     df = series_df.loc[:, FLARE_PROPERTIES]
     cm = df.corr()
-    sns.heatmap(cm, annot=True, cmap="Blues", cbar=False, fmt="d",
-                square=True, xticklabels=CLASS_LABELS, yticklabels=CLASS_LABELS)
-    plt.title(f"{flare_class} Flares (Mean {time_range}h Time Series)")
-    plt.show()
+    print(cm)
+    # sns.heatmap(cm, annot=True, cmap="Blues", cbar=False, fmt="d",
+    #             square=True, xticklabels=CLASS_LABELS, yticklabels=CLASS_LABELS)
+    # plt.title(f"{flare_class} Flares (Mean {time_range}h Time Series)")
+    # plt.show()
 
 if __name__ == "__main__":
     main()
