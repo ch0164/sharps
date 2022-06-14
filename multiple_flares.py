@@ -196,8 +196,9 @@ def main():
         else:
             return 3
 
-    def info_to_data(info, data):
+    def info_to_data(key, data):
         df = pd.DataFrame()
+        info = local_info_dataframes[key]
         for index, row in info.iterrows():
             # if flare_coincidences_mix[index] <= 0:
             # if flare_coincidences_mix[index] > 0:
@@ -213,20 +214,24 @@ def main():
         return df
 
     data_df = pd.concat([abc_properties_df, mx_properties_df])
-
-    print(data_df)
-    local_data_dataframes = {}
-    local_count = len(local_info_dataframes.keys())
     i = 1
-    for nar, df in local_info_dataframes.items():
-        print(f"{i}/{local_count}")
-        local_data_dataframes[nar] = info_to_data(df, data_df)
+    for key in local_info_dataframes.keys():
+        if pd.isna(key):
+            continue
+        key = int(key)
+        df = info_to_data(key, data_df)
+        df.drop_duplicates(inplace=True)
+        df.reset_index(inplace=True)
+        df.drop("index", axis=1, inplace=True)
+        print(local_info_dataframes[key])
+        print(df)
+
+        flare_coincidences = {}
+        flare_matrix = np.zeros((4, 4), dtype=int)
+        no_coincidences_df, coincidences_df = pd.DataFrame(), pd.DataFrame()
+        print(f"Key {i}/{len(local_info_dataframes)}")
         i += 1
 
-    flare_coincidences = {}
-    flare_matrix = np.zeros((4, 4), dtype=int)
-    no_coincidences_df = pd.DataFrame()
-    for nar, df in local_data_dataframes.items():
         for index1, row1 in df.iterrows():
             flare_class1 = row1["xray_class"]
             time_end1 = row1["T_REC"]
@@ -239,40 +244,87 @@ def main():
                 # Only look for flares in the same class.
                 time_end2 = row2["T_REC"]
                 time_start2 = time_end2 - datetime.timedelta(1)
-                # flares_overlap = (time_start1 <= time_start2 <= time_end1) or (
-                #         time_start1 <= time_end2 <= time_end1)
                 flares_overlap = time_start1 <= time_start2 <= time_end1
-                if flares_overlap:
-                    if nar not in flare_coincidences:
-                        flare_coincidences[nar] = 1
-                    else:
-                        flare_coincidences[nar] += 1
-                    flare_matrix[class_to_num(flare_class1)][class_to_num(flare_class2)] += 1
-                else:
-                    if time_start1 <= time_end2 <= time_end1:
-                        continue
-                    else:
-                        no_coincidences_df = pd.concat([no_coincidences_df, row1])
-    print(no_coincidences_df)
-    x = len(local_data_dataframes)
-    print("Total Count:", x * x - x)
-    flare_coincidences = sorted(flare_coincidences.items(), key=lambda x: x[0])
-    flare_coincidences_dict = {}
-    for k, v in flare_coincidences:
-        flare_coincidences_dict[k] = [v]
-    print(flare_coincidences)
-    print(flare_matrix)
+                if not flares_overlap:
+                    no_coincidences_df = pd.concat(
+                        [no_coincidences_df, row1.to_frame().T])
+                    print(no_coincidences_df)
 
-    sns.heatmap(flare_matrix, annot=True, cmap="Blues", cbar=False, fmt="d",
-                square=True, xticklabels=CLASS_LABELS, yticklabels=CLASS_LABELS)
-    plt.title("Flare Coincidence Confusion Matrix - Summed Individual ARs")
-    plt.show()
+        no_coincidences_df.to_csv("no_coincidences.csv")
 
-    print(flare_coincidences_dict)
-    coincidence_df = pd.DataFrame.from_dict(flare_coincidences_dict, orient="index", columns=["counts"])
-    coincidence_df.index.names = ["nar"]
-    print(coincidence_df.to_latex())
-    exit(1)
+
+    # print(data_df)
+    exit(0)
+
+
+    # print(data_df)
+    # local_data_dataframes = {}
+    # local_count = len(local_info_dataframes.keys())
+    # i = 1
+    # for nar, df in local_info_dataframes.items():
+    #     if pd.isna(nar):
+    #         print("NANNNN")
+    #         continue
+    #     nar = int(nar)
+    #     print(f"{i}/{local_count}", nar, df.shape[0])
+    #     local_data_dataframes[nar] = info_to_data(df, data_df)
+    #     i += 1
+    #
+    # flare_coincidences = {}
+    # flare_matrix = np.zeros((4, 4), dtype=int)
+    # no_coincidences_df, coincidences_df = pd.DataFrame(), pd.DataFrame()
+    # i = 1
+    # for nar, df in local_data_dataframes.items():
+    #     print(f"{i}/{len(local_data_dataframes)}")
+    #     i += 1
+    #     for index1, row1 in df.iterrows():
+    #         flare_class1 = row1["xray_class"]
+    #         time_end1 = row1["T_REC"]
+    #         time_start1 = time_end1 - datetime.timedelta(1)
+    #         for index2, row2 in df.iterrows():
+    #             flare_class2 = row2["xray_class"]
+    #             # Don't count the same flare.
+    #             if index1 == index2:
+    #                 continue
+    #             # Only look for flares in the same class.
+    #             time_end2 = row2["T_REC"]
+    #             time_start2 = time_end2 - datetime.timedelta(1)
+    #             flares_overlap = time_start1 <= time_start2 <= time_end1
+    #             if flares_overlap:
+    #                 coincidences_df = pd.concat([coincidences_df, row1])
+    #                 if nar not in flare_coincidences:
+    #                     flare_coincidences[nar] = 1
+    #                 else:
+    #                     flare_coincidences[nar] += 1
+    #                 flare_matrix[class_to_num(flare_class1)][class_to_num(flare_class2)] += 1
+    #             else:
+    #                 no_coincidences_df = pd.concat([no_coincidences_df, row1])
+    #
+    # coincidences_df.to_csv("coincidences.csv")
+    # no_coincidences_df.to_csv("no_coincidences.csv")
+
+    # print(no_coincidences_df)
+    # x = len(local_data_dataframes)
+    # print("Total Count:", x * x - x)
+    # flare_coincidences = sorted(flare_coincidences.items(), key=lambda x: x[0])
+    # flare_coincidences_dict = {}
+    # for k, v in flare_coincidences:
+    #     flare_coincidences_dict[k] = [v]
+    # print(flare_coincidences)
+    # print(flare_matrix)
+    #
+    # sns.heatmap(flare_matrix, annot=True, cmap="Blues", cbar=False, fmt="d",
+    #             square=True, xticklabels=CLASS_LABELS, yticklabels=CLASS_LABELS)
+    # plt.title("Flare Coincidence Confusion Matrix - Summed Individual ARs")
+    # plt.show()
+    #
+    # print(flare_coincidences_dict)
+    # coincidence_df = pd.DataFrame.from_dict(flare_coincidences_dict, orient="index", columns=["counts"])
+    # coincidence_df.index.names = ["nar"]
+    # print(coincidence_df.to_latex())
+    # s = sum(flare_coincidences_dict.values())
+    # print("Total Overlap:", s)
+    # exit(1)
 
 
     # b_data_df = info_to_data(b_df, bc_data)
@@ -314,21 +366,21 @@ def main():
     #
     #             flare_coincidences_mix[index1] += 1
 
-    def plot_examples(data, colors):
-        """
-        Helper function to plot data with associated colormap.
-        """
-        colormaps = ListedColormap(colors)
-        plt.figure(figsize=(16, 9))
-        im = plt.imshow(data, interpolation='nearest', cmap=colormaps)
-        plt.title("Coinciding Flares (M and B Flares)")
-        labels = ["None", "M-M", "B-B", "M-B"]
-        patches = [matplotlib.patches.Patch(color=colors[i],
-                                            label=labels[i]) for i in
-                   range(len(labels))]
-        plt.legend(handles=patches, bbox_to_anchor=(1.05, 1), loc=2,
-                   borderaxespad=0.)
-        plt.show()
+    # def plot_examples(data, colors):
+    #     """
+    #     Helper function to plot data with associated colormap.
+    #     """
+    #     colormaps = ListedColormap(colors)
+    #     plt.figure(figsize=(16, 9))
+    #     im = plt.imshow(data, interpolation='nearest', cmap=colormaps)
+    #     plt.title("Coinciding Flares (M and B Flares)")
+    #     labels = ["None", "M-M", "B-B", "M-B"]
+    #     patches = [matplotlib.patches.Patch(color=colors[i],
+    #                                         label=labels[i]) for i in
+    #                range(len(labels))]
+    #     plt.legend(handles=patches, bbox_to_anchor=(1.05, 1), loc=2,
+    #                borderaxespad=0.)
+    #     plt.show()
 
     # colors = ["white", "purple", "red", "green"]
     # plot_examples(np.triu(flare_matrix).transpose(), colors)
