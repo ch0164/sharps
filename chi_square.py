@@ -90,8 +90,10 @@ def floor_minute(time, cadence=12):
 
 def main():
     abc_properties_df = pd.read_csv("Data_ABC.csv")
+    abc_properties_df.dropna(inplace=True)
     abc_properties_df.drop(to_drop, inplace=True, axis=1)
     mx_properties_df = pd.read_csv("Data_MX.csv")
+    mx_properties_df.dropna(inplace=True)
     mx_properties_df.drop(to_drop, inplace=True, axis=1)
 
     info_df = pd.read_csv("all_flares.txt")
@@ -107,7 +109,7 @@ def main():
         abc_properties_df["T_REC"].apply(parse_tai_string)
     mx_properties_df["T_REC"] = \
         mx_properties_df["T_REC"].apply(parse_tai_string)
-    properties_df = pd.concat([abc_properties_df, mx_properties_df])
+    # properties_df = pd.concat([abc_properties_df, mx_properties_df])
 
     # Label flares by B, C, M, and X.
     info_df["xray_class"] = \
@@ -133,3 +135,141 @@ def main():
         x_df
     ])
     pair_dfs = [(mx_info, "MX"), (bx_info, "BX"), (bc_info, "BC")]
+
+    dfs = single_dfs + pair_dfs + [(pd.concat([bc_info, mx_info]), "BCMX")]
+
+    info_df.reset_index(inplace=True)
+    
+    bin_sep = 60
+    seconds = [bin_sep * i * 60 for i in range(1, 25)]
+    bins = [(start, start + 1) for start in range(0, 24)]
+    seconds_diffs = [(start * 3600, end * 3600) for start, end in bins]
+
+    print(x_df.to_string())
+
+    mean_df = mx_properties_df.mean().to_frame().T
+    print(mean_df)
+
+
+
+    for index, row in x_df.iterrows():
+        for start, end in seconds_diffs:
+            new_df = mx_properties_df.loc[mx_properties_df["NOAA_AR"] == row["nar"]]
+
+            end_timestamp = row["time_start"] - datetime.timedelta(0, start)
+            start_timestamp = row["time_start"] - datetime.timedelta(0, end)
+            df_start = mx_properties_df.iloc[
+                (mx_properties_df['T_REC'] - start_timestamp).abs().argsort()[
+                :1]]
+            df_end = mx_properties_df.iloc[
+                (mx_properties_df['T_REC'] - end_timestamp).abs().argsort()[
+                :1]]
+            start_index = df_start.iloc[0].name
+            end_index = df_end.iloc[0].name
+
+            df = mx_properties_df[start_index:end_index] \
+                # .drop(
+                # ["T_REC", "NOAA_AR"], axis=1)
+            print(df)
+            mean_df = df.mean().to_frame().T
+            print(mean_df)
+            exit(1)
+
+
+
+
+
+
+
+
+
+
+
+
+
+    # for info_df, label in dfs:
+    #     series_df = pd.DataFrame()
+    #     info_df.reset_index(inplace=True)
+    #     print(info_df)
+    #
+    #     timepoint_df = pd.DataFrame()
+    #     for index, row in info_df.iterrows():
+    #         if row["xray_class"] in ["B", "C"]:
+    #             properties_df = abc_properties_df
+    #         else:
+    #             properties_df = mx_properties_df
+    #         properties = properties_df.loc[properties_df["NOAA_AR"] == row["nar"]]
+    #         for start, end in seconds_diffs:
+    #             end_timestamp = row["time_start"] - datetime.timedelta(0, start)
+    #             start_timestamp = row["time_start"] - datetime.timedelta(0, end)
+    #             df_start = properties.iloc[
+    #                 (properties['T_REC'] - start_timestamp).abs().argsort()[
+    #                 :1]]
+    #             df_end = properties.iloc[
+    #                 (properties['T_REC'] - end_timestamp).abs().argsort()[
+    #                 :1]]
+    #             start_index = df_start.iloc[0].name
+    #             end_index = df_end.iloc[0].name
+    #
+    #             df = properties_df[start_index:end_index]\
+    #                 .drop(
+    #                 ["T_REC", "NOAA_AR"], axis=1)
+    #             print(df)
+    #             mean_df = df.mean().to_frame().T
+    #             if mean_df.isnull().values.any():
+    #                 continue
+    #             print(mean_df)
+    #
+    #             # mean_df["xray_class"] = row["xray_class"]
+    #
+    #             print("Mean DF", mean_df)
+    #
+    #             timepoint_df = pd.concat([
+    #                 timepoint_df, mean_df], ignore_index=True)
+    #
+    #             print("Timepoint DF", timepoint_df)
+    #
+    #
+    #             if index == 5:
+    #                 exit(1)
+    #         print(index, "/", info_df.shape[0])
+    #         end_timestamp = row["time_start"]
+    #         if end_timestamp < pd.Timestamp(2010, 5, 1):
+    #             continue
+    #         flare_class = row["xray_class"]
+    #         if flare_class in ["B", "C"]:
+    #             properties = abc_properties_df
+    #         else:
+    #             properties = mx_properties_df
+    #
+    #         start_timestamp = end_timestamp - datetime.timedelta(0, 3600 * 6)
+    #         df_start = properties.iloc[
+    #             (properties['T_REC'] - start_timestamp).abs().argsort()[:1]]
+    #         df_end = properties.iloc[
+    #             (properties['T_REC'] - end_timestamp).abs().argsort()[:1]]
+    #         start_index = df_start.iloc[0].name
+    #         end_index = df_end.iloc[0].name
+    #         df = properties_df[start_index:end_index].drop(
+    #             ["T_REC", "NOAA_AR"], axis=1)
+    #         # dataframes.append((range_df, row["xray_class"]))
+    #         mean_df = df.mean().to_frame().T
+    #         if mean_df.isnull().values.any():
+    #             continue
+    #         print(mean_df)
+    #
+    #         mean_df["xray_class"] = [flare_class]
+    #
+    #         series_df = pd.concat([
+    #             series_df, mean_df], ignore_index=True)
+    #
+    #         print(series_df)
+    #
+    #     series_df.dropna(inplace=True)
+    #     series_df.reset_index(inplace=True)
+    #     series_df.drop("index", axis=1, inplace=True)
+    #     print(series_df)
+
+
+
+if __name__ == "__main__":
+    main()
