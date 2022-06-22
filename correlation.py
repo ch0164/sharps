@@ -136,15 +136,19 @@ def main():
 
     dfs = single_dfs + pair_dfs + [(pd.concat([bc_info, mx_info]), "BCMX")]
 
+    time_range = 24
+    time_range_str = "24h"
+
     info_df.reset_index(inplace=True)
-    for info_df, label in dfs:
+
+    for info_df, label in pair_dfs:
         series_df = pd.DataFrame()
         info_df.reset_index(inplace=True)
         print(info_df)
 
         for index, row in info_df.iterrows():
             print(index, "/", info_df.shape[0])
-            end_timestamp = row["time_start"]
+            end_timestamp = row["time_start"] - datetime.timedelta(1)
             if end_timestamp < pd.Timestamp(2010, 5, 1):
                 continue
             flare_class = row["xray_class"]
@@ -153,7 +157,7 @@ def main():
             else:
                 properties = mx_properties_df
 
-            start_timestamp = end_timestamp - datetime.timedelta(0, 3600 * 6)
+            start_timestamp = end_timestamp - datetime.timedelta(0, 3600 * time_range)
             df_start = properties.iloc[
                 (properties['T_REC'] - start_timestamp).abs().argsort()[:1]]
             df_end = properties.iloc[
@@ -188,13 +192,10 @@ def main():
         # print(pca_df, pca_df.columns)
         # pca_df["xray_class"] = pd.Series(data_df["xray_class"])
 
-        if len(label) <= 1:
-            color = "ABSNJZH"
-        else:
-            color = "xray_class"
-        fig = px.scatter_3d(series_df, x="USFLUX", y="R_VALUE", z="MEANGAM", color=color,
+        fig = px.scatter_3d(series_df, x="USFLUX", y="R_VALUE", z="MEANJZD", color="MEANGBT",
+                            symbol="xray_class", size="MEANGAM",
                             title=f"Non-Correlative Parameters for {label} Class Flares ({series_df.shape[0]} Flares)")
-        fig.write_html(f"correlation/6h/{label}_mean_3d.html")
+        fig.write_html(f"correlation/{time_range_str}/{label}_mean_3d_3.html")
 
 
         # def info_to_data(info, data):
