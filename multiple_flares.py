@@ -77,14 +77,14 @@ def main():
     # plt.style.use("dark_background")
     # Choose which flares to plot.
     # ABC Flares
-    # abc_info_df = pd.read_csv("ABC_list.txt")
+    abc_info_df = pd.read_csv("ABC_list.txt")
     abc_properties_df = pd.read_csv("Data_ABC.csv")
     # MX Flares
-    # mx_info_df = pd.read_csv("MX_list.txt")
+    mx_info_df = pd.read_csv("MX_list.txt")
     mx_properties_df = pd.read_csv("Data_MX.csv")
 
-    info_df = pd.read_csv("all_flares.txt")
-    # info_df = pd.concat([abc_info_df, mx_info_df])
+    # info_df = pd.read_csv("all_flares.txt")
+    info_df = pd.concat([abc_info_df, mx_info_df])
     # info_df.drop(["hec_id", "lat_hg", "long_hg", "long_carr", "optical_class"], axis=1, inplace=True)
 
     # Convert time strings to datetime objects for cleaned info data.
@@ -104,17 +104,17 @@ def main():
         info_df["xray_class"].apply(classify_flare)
 
     # Partition the flares into their active regions.
-    # values, counts = np.unique(info_df["nar"], return_counts=True)
-    # value_counts = [(int(value), count) for value, count in zip(values, counts) if not pd.isna(value)]
-    # value_counts = sorted(value_counts, key=lambda value_count: value_count[1], reverse=True)
-    # local_info_dataframes = {}
-    # for value, count in value_counts:
-    #     if count > 1:
-    #         local_info_dataframes[value] = info_df.loc[info_df["nar"] == value]
-    # for value, count in value_counts:
-    #     print(value, count)
-    #
-    # print(local_info_dataframes)
+    values, counts = np.unique(info_df["nar"], return_counts=True)
+    value_counts = [(int(value), count) for value, count in zip(values, counts) if not pd.isna(value)]
+    value_counts = sorted(value_counts, key=lambda value_count: value_count[1], reverse=True)
+    local_info_dataframes = {}
+    for value, count in value_counts:
+        if count > 1:
+            local_info_dataframes[value] = info_df.loc[info_df["nar"] == value]
+    for value, count in value_counts:
+        print(value, count)
+
+    print(local_info_dataframes)
 
     def class_to_num(flare_class):
         if flare_class == "B":
@@ -129,34 +129,35 @@ def main():
     confusion_matrix = np.zeros((4, 4), dtype=int)
 
     i = 1
-    # flares_coincident = False
-    # for nar, df in local_info_dataframes.items():
-    #     coincident_flares = []
-    #     print(f"{i}/{len(local_info_dataframes)} NAR: {nar}, {local_info_dataframes[nar].shape[0]}")
-    #     i += 1
-    #     for index1, row1 in df.iterrows():
-    #         time_start1 = row1["time_start"]
-    #         time_end1 = row1["time_end"]
-    #         for index2, row2 in df.iterrows():
-    #             if index1 == index2:
-    #                 continue
-    #             time_start2 = row2["time_start"]
-    #             flares_overlap = time_start1 <= time_start2 <= time_end1
-    #             if flares_overlap:
-    #                 confusion_matrix[class_to_num(row1["xray_class"])][class_to_num(row2["xray_class"])] += 1
-    #                 flares_coincident = True
-    #
-    #         coincident_flares.append(flares_coincident)
-    #         flares_coincident = False
-    #     df["is_coincident"] = coincident_flares
-    #
-    # plt.figure(figsize=(16, 9))
-    # sns.heatmap(confusion_matrix, annot=True, cmap="Blues", cbar=False, fmt="d",
-    #             square=True, xticklabels=CLASS_LABELS, yticklabels=CLASS_LABELS)
-    # plt.title("Coinciding Flares Confusion Matrix - Exhaustive")
-    # plt.tight_layout()
-    # plt.show()
-    #
+    flares_coincident = False
+    for nar, df in local_info_dataframes.items():
+        coincident_flares = []
+        print(f"{i}/{len(local_info_dataframes)} NAR: {nar}, {local_info_dataframes[nar].shape[0]}")
+        i += 1
+        for index1, row1 in df.iterrows():
+            time_start1 = row1["time_start"]
+            time_end1 = row1["time_end"]
+            for index2, row2 in df.iterrows():
+                if index1 == index2:
+                    continue
+                time_start2 = row2["time_start"]
+                flares_overlap = time_start1 <= time_start2 <= time_end1
+                if flares_overlap:
+                    confusion_matrix[class_to_num(row1["xray_class"])][class_to_num(row2["xray_class"])] += 1
+                    flares_coincident = True
+
+            coincident_flares.append(flares_coincident)
+            flares_coincident = False
+        df["is_coincident"] = coincident_flares
+
+    plt.figure(figsize=(16, 9))
+    sns.heatmap(confusion_matrix, annot=True, cmap="Blues", cbar=False, fmt="d",
+                square=True, xticklabels=CLASS_LABELS, yticklabels=CLASS_LABELS)
+    plt.title("Coinciding Flares Confusion Matrix - Curated")
+    plt.tight_layout()
+    plt.show()
+
+    exit(1)
     coincident_info_df = pd.read_csv("coincident_flare_info.csv").drop("is_coincident", axis=1)
     noncoincident_info_df = pd.read_csv("noncoincident_flare_info.csv").drop("is_coincident", axis=1)
 
@@ -175,7 +176,7 @@ def main():
         df = pd.DataFrame()
         for index, row in info.iterrows():
             print(f"{index}/{info.shape[0]}")
-            timestamp = row["time_start"]
+            timestamp = row["time_start"] - datetime.timedelta(0, 3600 * 6)
             nar_df = data.loc[data["NOAA_AR"] == row["nar"]]
             df_sort = nar_df.iloc[
                 (nar_df['T_REC'] - timestamp).abs().argsort()[:1]]
@@ -206,13 +207,12 @@ def main():
             print(pca_df, pca_df.columns)
             pca_df["xray_class"] = pd.Series(data_df["xray_class"])
 
-            df = pd.concat([pca_df, data_df["xray_class"]], axis=1, ignore_index=True)
-            print(df)
+            # df = pd.concat([pca_df, data_df["xray_class"]], axis=1, ignore_index=True)
             ev = pca.explained_variance_ratio_[0] + pca.explained_variance_ratio_[1] + pca.explained_variance_ratio_[2]
-            fig = px.scatter_3d(df, x="PC1", y="PC2", z="PC3", color="xray_class",
+            fig = px.scatter_3d(pca_df, x="PC1", y="PC2", z="PC3", color="xray_class",
                                 title=f"{pair_label} {is_coincident.capitalize()} PCA ({df.shape[0]} Flares) Total "
                                       f"Explained Variance: {ev}")
-            fig.write_html(f"multiple_solar_events/pca/time_start/{pair_label}_{is_coincident}.html")
+            fig.write_html(f"multiple_solar_events/pca/24h/{pair_label}_{is_coincident}.html")
 
 
     # Get B and C class flares, round down their minutes.
