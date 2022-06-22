@@ -139,19 +139,110 @@ def main():
     ])
     pair_dfs = [(mx_info, "MX"), (bx_info, "BX"), (bc_info, "BC")]
 
-    time_start_df = pd.read_csv("time_start_data.csv")
-    time_start_df.drop("Unnamed: 0", axis=1, inplace=True)
+    # time_start_df = pd.read_csv("time_start_data.csv")
+    # time_start_df.drop("Unnamed: 0", axis=1, inplace=True)
 
-    # series_df = pd.read_csv("series_data.csv")
-    # series_df.drop("Unnamed: 0", axis=1, inplace=True)
+    series_df = pd.read_csv("series_data.csv")
+    series_df.drop("Unnamed: 0", axis=1, inplace=True)
+    # series_df = time_start_df
     # print(series_df)
     # exit(1)
 
+    b_df = series_df.loc[series_df["xray_class"] == "B"]
+    m_df = series_df.loc[series_df["xray_class"] == "M"]
+    x_df = series_df.loc[series_df["xray_class"] == "X"]
+    shape = b_df.shape[0] + m_df.shape[0] + x_df.shape[0]
+    for df in [b_df, m_df, x_df]:
+        df.reset_index(inplace=True)
+        df.drop("index", axis=1, inplace=True)
+    print(b_df.to_string())
+    print(m_df.to_string())
+    # exit(1)
 
-    lda = LinearDiscriminantAnalysis()
-    X = time_start_df.drop("xray_class", axis=1)
-    y = time_start_df["xray_class"]
-    data_lda = lda.fit_transform(X.to_numpy(), y.to_numpy())
+    df2 = pd.DataFrame()
+    for df in [b_df, m_df, x_df]:
+        X = df.drop("xray_class", axis=1)
+        y = df["xray_class"]
+        n = 7
+        pc_labels = [f"PC{i}" for i in range(1, n + 1)]
+        pca = PCA()
+        flare_pca = pca.fit_transform(MinMaxScaler().fit_transform(X))
+        ev = pca.explained_variance_ratio_
+        total_ev = ev[0] + ev[1] + ev[2]
+        pca_df = pd.DataFrame(data=flare_pca, columns=pc_labels)
+        print(pca_df, pca_df.columns)
+        pca_df["xray_class"] = pd.Series(y)
+        df2 = pd.concat([pca_df, df2])
+
+    pca_df = df2
+    print(pca_df.to_string())
+    fig = px.scatter_3d(pca_df, x="PC1", y="PC2", z="PC3", color="xray_class", opacity=0.7,
+                        title=f"PCA Non-Correlative Parameters for BMX ({shape} Flares)")
+    fig.write_html(f"pca/non_correlative/24h/bmx_mean_3d.html")
+
+    # ev = pca.explained_variance_ratio_
+    # pcs = [f"PC{i}" for i in range(1, len(ev) + 1)]
+    # plt.title(f"Non-Correlative Parameters PCA, All Flare Classes ({series_df.shape[0]} Flares)")
+    # plt.xlabel("Principal Components")
+    # plt.ylabel("Explained Variance Ratio")
+    # plt.xticks(range(len(ev)), pcs, fontsize=8, rotation=30)
+    # plt.bar(range(len(ev)), list(ev * 100),
+    #         align="center", color="y")
+    # plt.show()
+
+
+
+    # n = 7
+    # pc_labels = [f"PC{i}" for i in range(1, n + 1)]
+    # pca = PCA()
+    # X = series_df.drop("xray_class", axis=1)
+    # y = series_df["xray_class"]
+    # flare_pca = pca.fit_transform(MinMaxScaler().fit_transform(X))
+    # ev = pca.explained_variance_ratio_
+    # total_ev = ev[0] + ev[1] + ev[2]
+    # pca_df = pd.DataFrame(data=flare_pca, columns=pc_labels)
+    # print(pca_df, pca_df.columns)
+    # pca_df["xray_class"] = pd.Series(y)
+    #
+    # print(pca_df)
+
+    # colors = ["cyan", "lime", "orange", "red"]
+    # fig = plt.figure(figsize=(25, 12))
+    # pd.plotting.parallel_coordinates(pca_df,
+    #                                  "xray_class", color=colors)
+    # fig.tight_layout()
+    # # fig.suptitle(f"{flare_class} Complete ({time_label})",
+    # #              fontsize=20)
+    # fig.show()
+    # # fig.savefig(f"parallel_coordinates/{time_label}/complete_{flare_class}_class.png")
+    #
+    # exit(1)
+
+    # fig = px.scatter_3d(pca_df, x="PC1", y="PC2", z="PC3", color="xray_class", opacity=0.7,
+    #                     title=f"PCA Non-Correlative Parameters for All Class Flares ({series_df.shape[0]} Flares)"
+    #                           f" Total EV: {total_ev}")
+    # fig.write_html(f"pca/non_correlative/time_start/bcmx_mean_3d.html")
+    #
+    # ev = pca.explained_variance_ratio_
+    # pcs = [f"PC{i}" for i in range(1, len(ev) + 1)]
+    # plt.title(f"Non-Correlative Parameters PCA, All Flare Classes ({series_df.shape[0]} Flares)")
+    # plt.xlabel("Principal Components")
+    # plt.ylabel("Explained Variance Ratio")
+    # plt.xticks(range(len(ev)), pcs, fontsize=8, rotation=30)
+    # plt.bar(range(len(ev)), list(ev * 100),
+    #         align="center", color="y")
+    # plt.show()
+
+
+    # fig = px.scatter_3d(series_df, x="PC1", y="PC2", z="PC3", color="MEANGBT",
+    #                     symbol="xray_class", size="MEANGAM",
+    #                     title=f"Non-Correlative Parameters for {label} Class Flares ({series_df.shape[0]} Flares)")
+    # fig.write_html(f"correlation/{time_range_str}/{label}_mean_3d_3.html")
+
+    # lda = LinearDiscriminantAnalysis()
+    # X = time_start_df.drop("xray_class", axis=1)
+    # y = time_start_df["xray_class"]
+    # data_lda = lda.fit_transform(X.to_numpy(), y.to_numpy())
 
     # ev = lda.explained_variance_ratio_
     # iris_pc = [f"LD{i}" for i in range(1, len(ev) + 1)]
@@ -164,7 +255,7 @@ def main():
     # plt.show()
     # exit(1)
 
-    data_lda = pd.DataFrame(data_lda, columns=["LD1", "LD2", "LD3"])
+    # data_lda = pd.DataFrame(data_lda, columns=["LD1", "LD2", "LD3"])
 
 
     # plt.figure()
@@ -188,12 +279,12 @@ def main():
     # # display LDA plot
     # plt.show()
 
-    data_lda["xray_class"] = y
-    fig = px.scatter_3d(data_lda, x="LD1", y="LD2", z="LD3",
-                        color="xray_class",
-                        title=f"24h Range LDA on BCMX Non-Correlative Parameters ({time_start_df.shape[0]} Flares)",
-                        opacity=0.7)
-    fig.write_html(f"lda.html")
+    # data_lda["xray_class"] = y
+    # fig = px.scatter_3d(data_lda, x="LD1", y="LD2", z="LD3",
+    #                     color="xray_class",
+    #                     title=f"24h Range LDA on BCMX Non-Correlative Parameters ({time_start_df.shape[0]} Flares)",
+    #                     opacity=0.7)
+    # fig.write_html(f"lda.html")
 
 
 if __name__ == "__main__":
