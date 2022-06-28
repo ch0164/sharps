@@ -8,6 +8,7 @@ import urllib
 import matplotlib
 from astropy.io import fits
 from matplotlib.colors import ListedColormap
+from sklearn import preprocessing
 from sklearn.decomposition import PCA
 from sunpy.visualization.colormaps import color_tables as ct
 from matplotlib.dates import *
@@ -104,15 +105,18 @@ to_drop = [
 
 def main():
     labels = ["B", "C", "M", "X"]
-
-
-
-
+    for label in labels:
+        df = pd.read_csv(f"24_average_{label.lower()}_all.csv")
+        df.drop(["Unnamed: 0", "Unnamed: 0.1"], axis=1, inplace=True)
+        df.to_csv(f"24_average_{label.lower()}_all.csv")
+        print(df)
+    exit(1)
     x_df = pd.read_csv("24_average_x_all.csv")
-    x_df.drop(["Unnamed: 0"] + to_drop, axis=1, inplace=True)
-    x_df.dropna(inplace=True)
-    x_df.reset_index(inplace=True)
-    x_df.drop("index", axis=1, inplace=True)
+    print(x_df)
+    exit(1)
+
+    for label in labels:
+        pass
 
     bins = []
     for hour in range(0, 24 + 1):
