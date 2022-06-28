@@ -22,6 +22,7 @@ import pandas as pd
 from sklearn.preprocessing import PolynomialFeatures, MinMaxScaler
 import csv
 import plotly.express as px
+from scipy.stats import chisquare
 
 FLARE_PROPERTIES = [
     'ABSNJZH',
@@ -88,92 +89,145 @@ def floor_minute(time, cadence=12):
     return time - datetime.timedelta(minutes=time.minute % cadence)
 
 
+to_drop = [
+    'MEANGBZ',
+    'MEANGBH',
+    'TOTUSJZ',
+    'TOTUSJH',
+    'SAVNCPP',
+    'MEANPOT',
+    'TOTPOT',
+    'MEANSHR',
+    'SHRGT45',
+    'AREA_ACR'
+]
+
 def main():
-    abc_properties_df = pd.read_csv("Data_ABC.csv")
-    abc_properties_df.dropna(inplace=True)
-    abc_properties_df.drop(to_drop, inplace=True, axis=1)
-    mx_properties_df = pd.read_csv("Data_MX.csv")
-    mx_properties_df.dropna(inplace=True)
-    mx_properties_df.drop(to_drop, inplace=True, axis=1)
-
-    info_df = pd.read_csv("all_flares.txt")
-    info_df.drop(["hec_id", "lat_hg", "long_hg", "long_carr", "optical_class"], axis=1, inplace=True)
-
-    # Convert time strings to datetime objects for cleaned info data.
-    for time_string in ["time_start", "time_peak", "time_end"]:
-        info_df[time_string] = \
-            info_df[time_string].apply(parse_tai_string)
-
-    # Convert T_REC string to datetime objects.
-    abc_properties_df["T_REC"] = \
-        abc_properties_df["T_REC"].apply(parse_tai_string)
-    mx_properties_df["T_REC"] = \
-        mx_properties_df["T_REC"].apply(parse_tai_string)
-    # properties_df = pd.concat([abc_properties_df, mx_properties_df])
-
-    # Label flares by B, C, M, and X.
-    info_df["xray_class"] = \
-        info_df["xray_class"].apply(classify_flare)
-
-    b_df = info_df.loc[info_df["xray_class"] == "B"]
-    c_df = info_df.loc[info_df["xray_class"] == "C"]
-    m_df = info_df.loc[info_df["xray_class"] == "M"]
-    x_df = info_df.loc[info_df["xray_class"] == "X"]
-
-    single_dfs = [(x_df, "X"), (m_df, "M"), (b_df, "B"), (c_df, "C")]
-
-    bc_info = pd.concat([
-        b_df,
-        c_df
-    ])
-    mx_info = pd.concat([
-        m_df,
-        x_df
-    ])
-    bx_info = pd.concat([
-        b_df,
-        x_df
-    ])
-    pair_dfs = [(mx_info, "MX"), (bx_info, "BX"), (bc_info, "BC")]
-
-    dfs = single_dfs + pair_dfs + [(pd.concat([bc_info, mx_info]), "BCMX")]
-
-    info_df.reset_index(inplace=True)
-    
-    bin_sep = 60
-    seconds = [bin_sep * i * 60 for i in range(1, 25)]
-    bins = [(start, start + 1) for start in range(0, 24)]
-    seconds_diffs = [(start * 3600, end * 3600) for start, end in bins]
-
-    print(x_df.to_string())
-
-    mean_df = mx_properties_df.mean().to_frame().T
-    print(mean_df)
+    labels = ["B", "C", "M", "X"]
 
 
 
-    for index, row in x_df.iterrows():
-        for start, end in seconds_diffs:
-            new_df = mx_properties_df.loc[mx_properties_df["NOAA_AR"] == row["nar"]]
 
-            end_timestamp = row["time_start"] - datetime.timedelta(0, start)
-            start_timestamp = row["time_start"] - datetime.timedelta(0, end)
-            df_start = mx_properties_df.iloc[
-                (mx_properties_df['T_REC'] - start_timestamp).abs().argsort()[
-                :1]]
-            df_end = mx_properties_df.iloc[
-                (mx_properties_df['T_REC'] - end_timestamp).abs().argsort()[
-                :1]]
-            start_index = df_start.iloc[0].name
-            end_index = df_end.iloc[0].name
+    x_df = pd.read_csv("24_average_x_all.csv")
+    x_df.drop(["Unnamed: 0"] + to_drop, axis=1, inplace=True)
+    x_df.dropna(inplace=True)
+    x_df.reset_index(inplace=True)
+    x_df.drop("index", axis=1, inplace=True)
 
-            df = mx_properties_df[start_index:end_index] \
-                # .drop(
-                # ["T_REC", "NOAA_AR"], axis=1)
-            print(df)
-            mean_df = df.mean().to_frame().T
-            print(mean_df)
-            exit(1)
+    bins = []
+    for hour in range(0, 24 + 1):
+        if hour == 0:
+            bin_size = 4
+            decrement = 0
+        else:
+            bin_size = 5
+            decrement = 0
+        bin_ = [5 * hour + i - decrement for i in range(0, bin_size)]
+        bins.append(bin_)
+        print(x_df)
+
+    for hour in range(0, 24):
+        bin_ = bins[hour]
+        if 119 in bin_:
+            bin_.remove(119)
+        data_points = x_df.iloc[bin_, :]
+
+        for property1 in UNIQUE_PROPERTIES:
+            for property2 in list(set(FLARE_PROPERTIES) - {property1}):
+                property1_df = data_points[property1]
+                property2_df = data_points[property2]
+                print(property1_df)
+                print(property2_df)
+                exit(1)
+
+
+
+
+    # abc_properties_df = pd.read_csv("Data_ABC.csv")
+    # abc_properties_df.dropna(inplace=True)
+    # abc_properties_df.drop(to_drop, inplace=True, axis=1)
+    # mx_properties_df = pd.read_csv("Data_MX.csv")
+    # mx_properties_df.dropna(inplace=True)
+    # mx_properties_df.drop(to_drop, inplace=True, axis=1)
+    #
+    # info_df = pd.read_csv("all_flares.txt")
+    # info_df.drop(["hec_id", "lat_hg", "long_hg", "long_carr", "optical_class"], axis=1, inplace=True)
+    #
+    # # Convert time strings to datetime objects for cleaned info data.
+    # for time_string in ["time_start", "time_peak", "time_end"]:
+    #     info_df[time_string] = \
+    #         info_df[time_string].apply(parse_tai_string)
+    #
+    # # Convert T_REC string to datetime objects.
+    # abc_properties_df["T_REC"] = \
+    #     abc_properties_df["T_REC"].apply(parse_tai_string)
+    # mx_properties_df["T_REC"] = \
+    #     mx_properties_df["T_REC"].apply(parse_tai_string)
+    # # properties_df = pd.concat([abc_properties_df, mx_properties_df])
+    #
+    # # Label flares by B, C, M, and X.
+    # info_df["xray_class"] = \
+    #     info_df["xray_class"].apply(classify_flare)
+    #
+    # b_df = info_df.loc[info_df["xray_class"] == "B"]
+    # c_df = info_df.loc[info_df["xray_class"] == "C"]
+    # m_df = info_df.loc[info_df["xray_class"] == "M"]
+    # x_df = info_df.loc[info_df["xray_class"] == "X"]
+    #
+    # single_dfs = [(x_df, "X"), (m_df, "M"), (b_df, "B"), (c_df, "C")]
+    #
+    # bc_info = pd.concat([
+    #     b_df,
+    #     c_df
+    # ])
+    # mx_info = pd.concat([
+    #     m_df,
+    #     x_df
+    # ])
+    # bx_info = pd.concat([
+    #     b_df,
+    #     x_df
+    # ])
+    # pair_dfs = [(mx_info, "MX"), (bx_info, "BX"), (bc_info, "BC")]
+    #
+    # dfs = single_dfs + pair_dfs + [(pd.concat([bc_info, mx_info]), "BCMX")]
+    #
+    # info_df.reset_index(inplace=True)
+    #
+    # bin_sep = 60
+    # seconds = [bin_sep * i * 60 for i in range(1, 25)]
+    # bins = [(start, start + 1) for start in range(0, 24)]
+    # seconds_diffs = [(start * 3600, end * 3600) for start, end in bins]
+    #
+    # print(x_df.to_string())
+    #
+    # mean_df = mx_properties_df.mean().to_frame().T
+    # print(mean_df)
+    #
+    #
+    #
+    # for index, row in x_df.iterrows():
+    #     for start, end in seconds_diffs:
+    #         new_df = mx_properties_df.loc[mx_properties_df["NOAA_AR"] == row["nar"]]
+    #
+    #         end_timestamp = row["time_start"] - datetime.timedelta(0, start)
+    #         start_timestamp = row["time_start"] - datetime.timedelta(0, end)
+    #         df_start = mx_properties_df.iloc[
+    #             (mx_properties_df['T_REC'] - start_timestamp).abs().argsort()[
+    #             :1]]
+    #         df_end = mx_properties_df.iloc[
+    #             (mx_properties_df['T_REC'] - end_timestamp).abs().argsort()[
+    #             :1]]
+    #         start_index = df_start.iloc[0].name
+    #         end_index = df_end.iloc[0].name
+    #
+    #         df = mx_properties_df[start_index:end_index] \
+    #             # .drop(
+    #             # ["T_REC", "NOAA_AR"], axis=1)
+    #         print(df)
+    #         mean_df = df.mean().to_frame().T
+    #         print(mean_df)
+    #         exit(1)
 
 
 

@@ -149,18 +149,22 @@ def main():
     # exit(1)
 
     b_df = series_df.loc[series_df["xray_class"] == "B"]
+    c_df = series_df.loc[series_df["xray_class"] == "C"]
     m_df = series_df.loc[series_df["xray_class"] == "M"]
     x_df = series_df.loc[series_df["xray_class"] == "X"]
-    shape = b_df.shape[0] + m_df.shape[0] + x_df.shape[0]
-    for df in [b_df, m_df, x_df]:
+    dfs = [b_df, c_df, m_df, x_df]
+    shape = 0
+    label = "BCMX"
+    for df in dfs:
         df.reset_index(inplace=True)
         df.drop("index", axis=1, inplace=True)
+        shape += df.shape[0]
     print(b_df.to_string())
     print(m_df.to_string())
     # exit(1)
 
     df2 = pd.DataFrame()
-    for df in [b_df, m_df, x_df]:
+    for df in dfs:
         X = df.drop("xray_class", axis=1)
         y = df["xray_class"]
         n = 7
@@ -177,8 +181,8 @@ def main():
     pca_df = df2
     print(pca_df.to_string())
     fig = px.scatter_3d(pca_df, x="PC1", y="PC2", z="PC3", color="xray_class", opacity=0.7,
-                        title=f"PCA Non-Correlative Parameters for BMX ({shape} Flares)")
-    fig.write_html(f"pca/non_correlative/24h/bmx_mean_3d.html")
+                        title=f"PCA Non-Correlative Parameters for {label} ({shape} Flares)")
+    fig.write_html(f"pca/non_correlative/24h/{label.lower()}_mean_3d_separate_pca.html")
 
     # ev = pca.explained_variance_ratio_
     # pcs = [f"PC{i}" for i in range(1, len(ev) + 1)]

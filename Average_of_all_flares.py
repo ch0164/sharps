@@ -3,6 +3,7 @@ from datetime import datetime as dt_obj
 import matplotlib.pylab as plt
 import pandas as pd
 import numpy as np
+from scipy.stats import chisquare
 
 FLARE_PROPERTIES = [
     'ABSNJZH',
@@ -23,6 +24,21 @@ FLARE_PROPERTIES = [
     'TOTUSJZ',
     'USFLUX',
 ]
+
+to_drop = [
+    'MEANGBZ',
+    'MEANGBH',
+    'TOTUSJZ',
+    'TOTUSJH',
+    'SAVNCPP',
+    'MEANPOT',
+    'TOTPOT',
+    'MEANSHR',
+    'SHRGT45',
+    'AREA_ACR'
+]
+UNIQUE_PROPERTIES = list(set(FLARE_PROPERTIES) - set(to_drop))
+
 
 
 def parse_tai_string(tstr, datetime=True):
@@ -62,16 +78,21 @@ def main():
     # properties_df = pd.read_csv("Data_MX.csv")
 
     info_df = pd.read_csv("all_flares.txt")
+    # info_df = pd.read_csv("noncoincident_flare_info.csv")
     abc_properties = pd.read_csv("Data_ABC.csv")
+    abc_properties.dropna(inplace=True)
+    abc_properties.drop(to_drop, inplace=True, axis=1)
     mx_properties = pd.read_csv("Data_MX.csv")
+    mx_properties.dropna(inplace=True)
+    mx_properties.drop(to_drop, inplace=True, axis=1)
 
     # Define input for flare.
     # flare_index = 20  # Valid: 0 to 765
     time_range = 24  # Valid: 1 to 48 hours
 
-    df_1_sum = pd.DataFrame(columns=FLARE_PROPERTIES)
-    df_2_sum = pd.DataFrame(columns=FLARE_PROPERTIES)
-    for flare_property in FLARE_PROPERTIES:
+    df_1_sum = pd.DataFrame(columns=UNIQUE_PROPERTIES)
+    df_2_sum = pd.DataFrame(columns=UNIQUE_PROPERTIES)
+    for flare_property in UNIQUE_PROPERTIES:
         df_1_sum[flare_property] = np.zeros(time_range * 5)
         df_2_sum[flare_property] = np.zeros(time_range * 5)
 
@@ -85,16 +106,24 @@ def main():
         abc_properties["T_REC"].apply(parse_tai_string)
     mx_properties["T_REC"] = \
         mx_properties["T_REC"].apply(parse_tai_string)
-    df_needed = pd.DataFrame(columns=FLARE_PROPERTIES)
+    df_needed = pd.DataFrame(columns=UNIQUE_PROPERTIES)
 
     # Label flares by B, C, M, and X.
     info_df["xray_class"] = \
         info_df["xray_class"].apply(classify_flare)
 
-    labels = ["B", "C", "M", "X"]
-    colors = ["cyan", "green", "orange", "red"]
+    labels = ["B", "C", "M"]
+    colors = ["cyan", "green", "orange"]
 
-    fig, ax = plt.subplots(6, 3, figsize=(18, 20))
+    # labels = ["X"]
+    # colors = ["red"]
+
+    # labels = ["B", "C"]
+    # colors = ["cyan", "green"]
+
+    fig, ax = plt.subplots(4, 2, figsize=(18, 20))
+
+    print(info_df["xray_class"].value_counts())
 
     for label, color in zip(labels, colors):
         temp_df = info_df
@@ -129,10 +158,9 @@ def main():
             # Make sub-dataframe of this flare
             local_properties_df = properties_df.iloc[start_index:end_index + 1]
 
-            df_1 = pd.DataFrame(columns=FLARE_PROPERTIES)
-            df_2 = pd.DataFrame(columns=FLARE_PROPERTIES)
-            df_3 = pd.DataFrame(columns=FLARE_PROPERTIES)
-            for flare_property in FLARE_PROPERTIES:
+            df_1 = pd.DataFrame(columns=UNIQUE_PROPERTIES)
+            df_2 = pd.DataFrame(columns=UNIQUE_PROPERTIES)
+            for flare_property in UNIQUE_PROPERTIES:
                 df_1[flare_property] = np.zeros(time_range * 5)
                 df_2[flare_property] = np.zeros(time_range * 5)
                 for i in range(time_range * 5 - 1, -1, -1):
@@ -144,7 +172,7 @@ def main():
 
             local_properties_df.loc[:, 'xray_class'] = flare_class
             local_properties_df.loc[:, 'time_start'] = start_time
-            local_properties_df.loc[:, 'flare_index'] = flare_index
+            # local_properties_df.loc[:, 'flare_index'] = flare_index
             df_needed = pd.concat([df_needed, local_properties_df])
 
             df_1_sum = df_1_sum.add(df_1)
@@ -152,31 +180,36 @@ def main():
 
         # print(df_1_sum)
         # print(df_2_sum)
-        print(df_needed)
-        df_needed.to_csv('MX_data_bernard.csv')
+        # print(df_needed)
+        # df_needed.to_csv('MX_data_bernard.csv')
 
         df_ave = df_1_sum.div(df_2_sum)
-        # Plot specified flare properties over the specified time.
-        row, col = 0, 0
-        for flare_property in FLARE_PROPERTIES:
-            property_df = df_ave[[flare_property]]
-            property_df.plot(y=flare_property, ax=ax[row, col], color=color, label=label)
-            ax[row, col].set_ylabel(flare_property)
-            # ax[row, col].set_title(f"Total {flare_property} from {properties_df['T_REC'].values[0]}")
-            ax[row, col].set_title(f"{flare_property}")
-
-            col += 1
-            if col == 3:
-                col = 0
-                row += 1
+        df_ave.to_csv(f"24_average_{label.lower()}_all.csv")
 
         info_df = temp_df
 
-    fig.tight_layout()
-    # fig.legend(loc="lower right")
-    fig.show()
-    # plt.show()
-    plt.savefig('image_MX.png')
+    # df_ave = pd.read_csv("24_average_x_all.csv")
+    # print(df_ave.columns)
+    # Plot specified flare properties over the specified time.
+    row, col = 0, 0
+    # print(df_ave)
+    # for flare_property in UNIQUE_PROPERTIES:
+    #     property_df = df_ave[[flare_property]]
+    #     property_df.plot(y=flare_property, ax=ax[row, col], color=color, label=label)
+    #     ax[row, col].set_ylabel(flare_property)
+    #     # ax[row, col].set_title(f"Total {flare_property} from {properties_df['T_REC'].values[0]}")
+    #     ax[row, col].set_title(f"{flare_property}")
+    #
+    #     col += 1
+    #     if col == 2:
+    #         col = 0
+    #         row += 1
+    #
+    # fig.tight_layout()
+    # # fig.legend(loc="lower right")
+    # fig.show()
+    # # plt.show()
+    # # plt.savefig('24_average_distinct_classes_noncoincident.png')
 
 
 if __name__ == "__main__":
