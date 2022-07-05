@@ -59,6 +59,7 @@ to_drop = [
 ]
 
 UNIQUE_PROPERTIES = list(set(FLARE_PROPERTIES) - set(to_drop))
+UNIQUE_PROPERTIES = sorted(UNIQUE_PROPERTIES)
 
 CLASS_LABELS = ["B", "C", "M", "X"]
 
@@ -106,43 +107,63 @@ to_drop = [
 def main():
     labels = ["B", "C", "M", "X"]
     for label in labels:
-        df = pd.read_csv(f"24_average_{label.lower()}_all.csv")
-        df.drop(["Unnamed: 0", "Unnamed: 0.1"], axis=1, inplace=True)
-        df.to_csv(f"24_average_{label.lower()}_all.csv")
-        print(df)
-    exit(1)
-    x_df = pd.read_csv("24_average_x_all.csv")
-    print(x_df)
-    exit(1)
+        df = pd.read_csv(f"24_average_{label.lower()}_all_sum_to_one.csv")
+        x2 = np.zeros((7, 7), dtype=float)
 
-    for label in labels:
-        pass
-
-    bins = []
-    for hour in range(0, 24 + 1):
-        if hour == 0:
-            bin_size = 4
-            decrement = 0
-        else:
-            bin_size = 5
-            decrement = 0
-        bin_ = [5 * hour + i - decrement for i in range(0, bin_size)]
-        bins.append(bin_)
-        print(x_df)
-
-    for hour in range(0, 24):
-        bin_ = bins[hour]
-        if 119 in bin_:
-            bin_.remove(119)
-        data_points = x_df.iloc[bin_, :]
+        def property_to_num(property):
+            return UNIQUE_PROPERTIES.index(property)
 
         for property1 in UNIQUE_PROPERTIES:
-            for property2 in list(set(FLARE_PROPERTIES) - {property1}):
-                property1_df = data_points[property1]
-                property2_df = data_points[property2]
-                print(property1_df)
-                print(property2_df)
-                exit(1)
+            other_properties = sorted(list(set(UNIQUE_PROPERTIES) - {property1}))
+            print(property1)
+            print(other_properties)
+            for property2 in other_properties:
+                f_obs = df[property1]
+                f_exp = df[property2]
+                chisq, p = chisquare(f_obs, f_exp)
+                x2[property_to_num(property1)][property_to_num(property2)] = chisq
+
+
+        # print(x_df)
+        sns.heatmap(x2, annot=True, cmap="Blues", cbar=False, fmt=".3f",
+                    square=True, xticklabels=UNIQUE_PROPERTIES, yticklabels=UNIQUE_PROPERTIES)
+        plt.title(f"Chi-Square Test of Non-Correlative Parameters\n over 24h Average Timeline ({label} Class Flares)")
+        # plt.title(f"{flare_class} Flares (Mean {time_range}h Time Series)")
+        plt.tight_layout()
+        plt.show()
+        plt.savefig(f"chi_square/{label.lower()}_24h_average_chi_square_test")
+        print(x2)
+    # print(x_df)
+    # # exit(1)
+    #
+    # for label in labels:
+    #     pass
+    #
+    # bins = []
+    # for hour in range(0, 24 + 1):
+    #     if hour == 0:
+    #         bin_size = 4
+    #         decrement = 0
+    #     else:
+    #         bin_size = 5
+    #         decrement = 0
+    #     bin_ = [5 * hour + i - decrement for i in range(0, bin_size)]
+    #     bins.append(bin_)
+    #
+    # for hour in range(0, 24):
+    #     bin_ = bins[hour]
+    #     if 119 in bin_:
+    #         bin_.remove(119)
+    #     data_points = x_df.iloc[bin_, :]
+    #     print(data_points)
+
+        # for property1 in UNIQUE_PROPERTIES:
+        #     for property2 in list(set(FLARE_PROPERTIES) - {property1}):
+        #         property1_df = data_points[property1]
+        #         property2_df = data_points[property2]
+        #         print(property1_df)
+        #         print(property2_df)
+        #         exit(1)
 
 
 

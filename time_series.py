@@ -172,9 +172,9 @@ def main():
     df = series_df.loc[:, FLARE_PROPERTIES]
     cm = df.corr()
     print(cm)
-    # sns.heatmap(cm, annot=True, cmap="Blues", cbar=False, fmt="d",
-    #             square=True, xticklabels=CLASS_LABELS, yticklabels=CLASS_LABELS)
-    # plt.title(f"{flare_class} Flares (Mean {time_range}h Time Series)")
+    sns.heatmap(cm, annot=True, cmap="Blues", cbar=False, fmt="d",
+                square=True, xticklabels=CLASS_LABELS, yticklabels=CLASS_LABELS)
+    plt.title(f"{flare_class} Flares (Mean {time_range}h Time Series)")
     # plt.show()
 
 if __name__ == "__main__":
