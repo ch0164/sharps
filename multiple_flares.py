@@ -46,6 +46,19 @@ FLARE_PROPERTIES = [
 
 CLASS_LABELS = ["B", "C", "M", "X"]
 
+to_drop = [
+    'MEANGBZ',
+    'MEANGBH',
+    'TOTUSJZ',
+    'TOTUSJH',
+    'SAVNCPP',
+    'MEANPOT',
+    'TOTPOT',
+    'MEANSHR',
+    'SHRGT45',
+    'AREA_ACR'
+]
+
 
 def parse_tai_string(tstr, datetime=True):
     year = int(tstr[:4])
@@ -250,7 +263,7 @@ def main():
     noncoincident_flares = info_to_data(noncoincident_info_df)
     for df, label in [(coincident_flares, "Coincident"), (noncoincident_flares, "Noncoincident")]:
         lda = LinearDiscriminantAnalysis()
-        X = df.drop(["T_REC", "NOAA_AR", "xray_class"], axis=1)
+        X = df.drop(["T_REC", "NOAA_AR", "xray_class"] + to_drop, axis=1)
         y = df["xray_class"]
         data_lda = lda.fit_transform(X.to_numpy(), y.to_numpy())
         data_lda = pd.DataFrame(data_lda, columns=["LD1", "LD2", "LD3"])
@@ -265,8 +278,9 @@ def main():
 
         fig = px.scatter_3d(data_lda, x="LD1", y="LD2", z="LD3",
                             color="xray_class",
-                            title=f"LDA {label} BCMX Class Flares ({df.shape[0]} Flares)")
-        fig.write_html(f"bcmx_3d_{label}.html")
+                            title=f"24h Range LDA {label} BCMX Class Flares ({df.shape[0]} Flares)",
+                            opacity=0.7)
+        fig.write_html(f"bcmx_3d_{label.lower()}.html")
     exit(1)
 
 
