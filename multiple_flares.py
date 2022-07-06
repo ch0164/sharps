@@ -9,6 +9,7 @@ import matplotlib
 from astropy.io import fits
 from matplotlib.colors import ListedColormap
 from sklearn.decomposition import PCA
+from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
 from sunpy.visualization.colormaps import color_tables as ct
 from matplotlib.dates import *
 import matplotlib.image as mpimg
@@ -83,118 +84,155 @@ def main():
     mx_info_df = pd.read_csv("MX_list.txt")
     mx_properties_df = pd.read_csv("Data_MX.csv")
 
-    info_df = pd.read_csv("all_flares.txt")
-    # info_df = pd.concat([abc_info_df, mx_info_df])
-    info_df.drop(["hec_id", "lat_hg", "long_hg", "long_carr", "optical_class"], axis=1, inplace=True)
-
-    # Convert time strings to datetime objects for cleaned info data.
-    for time_string in ["time_start", "time_peak", "time_end"]:
-        info_df[time_string] = \
-            info_df[time_string].apply(parse_tai_string)
-
-
+    # info_df = pd.read_csv("all_flares.txt")
+    # # info_df = pd.concat([abc_info_df, mx_info_df])
+    # info_df.drop(["hec_id", "lat_hg", "long_hg", "long_carr", "optical_class"], axis=1, inplace=True)
+    #
+    # # Convert time strings to datetime objects for cleaned info data.
+    # for time_string in ["time_start", "time_peak", "time_end"]:
+    #     info_df[time_string] = \
+    #         info_df[time_string].apply(parse_tai_string)
+    #
+    #
     # Convert T_REC string to datetime objects.
     abc_properties_df["T_REC"] = \
         abc_properties_df["T_REC"].apply(parse_tai_string)
     mx_properties_df["T_REC"] = \
         mx_properties_df["T_REC"].apply(parse_tai_string)
-
-    # Label flares by B, C, M, and X.
-    info_df["xray_class"] = \
-        info_df["xray_class"].apply(classify_flare)
-
-    b_df = info_df.loc[info_df["xray_class"] == "B"]
-    c_df = info_df.loc[info_df["xray_class"] == "C"]
-    m_df = info_df.loc[info_df["xray_class"] == "M"]
-    x_df = info_df.loc[info_df["xray_class"] == "X"]
-
-    print(f"# of B Flares: {b_df.shape[0]}\n"
-                 f"# of C Flares: {c_df.shape[0]}\n"
-                 f"# of M Flares: {m_df.shape[0]}\n"
-                 f"# of X Flares: {x_df.shape[0]}")
-    exit(2)
-
-    # Partition the flares into their active regions.
-    values, counts = np.unique(info_df["nar"], return_counts=True)
-    value_counts = [(int(value), count) for value, count in zip(values, counts) if not pd.isna(value)]
-    value_counts = sorted(value_counts, key=lambda value_count: value_count[1], reverse=True)
-    local_info_dataframes = {}
-    for value, count in value_counts:
-        if count > 1:
-            local_info_dataframes[value] = info_df.loc[info_df["nar"] == value]
-    for value, count in value_counts:
-        print(value, count)
-
-    print(local_info_dataframes)
-
-    def class_to_num(flare_class):
-        if flare_class == "B":
-            return 0
-        elif flare_class == "C":
-            return 1
-        elif flare_class == "M":
-            return 2
-        else:
-            return 3
-
-    confusion_matrix = np.zeros((4, 4), dtype=int)
-
-    i = 1
-    flares_coincident = False
-    for nar, df in local_info_dataframes.items():
-        coincident_flares = []
-        print(f"{i}/{len(local_info_dataframes)} NAR: {nar}, {local_info_dataframes[nar].shape[0]}")
-        i += 1
-        for index1, row1 in df.iterrows():
-            time_start1 = row1["time_start"] - datetime.timedelta(1)
-            time_end1 = row1["time_start"]
-            for index2, row2 in df.iterrows():
-                if index1 == index2:
-                    continue
-                time_start2 = row2["time_start"] - datetime.timedelta(1)
-                flares_overlap = time_start1 <= time_start2 <= time_end1
-                # print(time_start1, time_start2, time_end1)
-                # print(flares_overlap)
-                # exit(1)
-                if flares_overlap:
-                    confusion_matrix[class_to_num(row1["xray_class"])][class_to_num(row2["xray_class"])] += 1
-                    flares_coincident = True
-                    break
-
-            coincident_flares.append(flares_coincident)
-            flares_coincident = False
-        df["is_coincident"] = coincident_flares
-
-    plt.figure(figsize=(16, 9))
-    sns.heatmap(confusion_matrix, annot=True, cmap="Blues", cbar=False, fmt="d",
-                square=True, xticklabels=CLASS_LABELS, yticklabels=CLASS_LABELS)
-    plt.title("Coinciding Flares Confusion Matrix")
-    plt.tight_layout()
-    # plt.legend(f"# of B Flares: {b_df.shape[0]}\n"
+    #
+    # # Label flares by B, C, M, and X.
+    # info_df["xray_class"] = \
+    #     info_df["xray_class"].apply(classify_flare)
+    #
+    # b_df = info_df.loc[info_df["xray_class"] == "B"]
+    # c_df = info_df.loc[info_df["xray_class"] == "C"]
+    # m_df = info_df.loc[info_df["xray_class"] == "M"]
+    # x_df = info_df.loc[info_df["xray_class"] == "X"]
+    #
+    # print(f"# of B Flares: {b_df.shape[0]}\n"
     #              f"# of C Flares: {c_df.shape[0]}\n"
     #              f"# of M Flares: {m_df.shape[0]}\n"
-    #              f"# of X Flares: {x_df.shape[0]}",
-    #              loc="best")
-    plt.show()
+    #              f"# of X Flares: {x_df.shape[0]}")
+    #
+    # # Partition the flares into their active regions.
+    # info_df = info_df.loc[info_df["nar"] == np.nan]
+    # print(info_df)
+    # exit(1)
+    # values, counts = np.unique(info_df["nar"], return_counts=True)
+    # value_counts = [(int(value), count) for value, count in zip(values, counts) if not pd.isna(value)]
+    # value_counts = sorted(value_counts, key=lambda value_count: value_count[1], reverse=True)
+    # local_info_dataframes = {}
+    # for value, count in value_counts:
+    #     local_info_dataframes[value] = info_df.loc[info_df["nar"] == value]
+    # for value, count in value_counts:
+    #     print(value, count)
+    #
+    # sum = 0
+    # for df in local_info_dataframes.values():
+    #     sum += df.shape[0]
+    # print(sum)
+    # exit(2)
+    #
+    # print(local_info_dataframes)
+    #
+    # def class_to_num(flare_class):
+    #     if flare_class == "B":
+    #         return 0
+    #     elif flare_class == "C":
+    #         return 1
+    #     elif flare_class == "M":
+    #         return 2
+    #     else:
+    #         return 3
+    #
+    # confusion_matrix = np.zeros((4, 4), dtype=int)
+    #
+    # i = 1
+    # flares_coincident = False
+    # final_df = pd.DataFrame()
+    # total_shape = 0
+    # for nar, df in local_info_dataframes.items():
+    #     coincident_flares = []
+    #     total_shape += df.shape[0]
+    #     print(f"{i}/{len(local_info_dataframes)} NAR: {nar}, {local_info_dataframes[nar].shape[0]}")
+    #     i += 1
+    #     if local_info_dataframes[nar].shape[0] == 1:
+    #         df["is_coincident"] = [False]
+    #         final_df = pd.concat([final_df, df])
+    #         continue
+    #     for index1, row1 in df.iterrows():
+    #         time_start1 = row1["time_start"] - datetime.timedelta(1)
+    #         time_end1 = row1["time_start"]
+    #         for index2, row2 in df.iterrows():
+    #             if index1 == index2:
+    #                 continue
+    #             time_start2 = row2["time_start"] - datetime.timedelta(1)
+    #             flares_overlap = time_start1 <= time_start2 <= time_end1
+    #             # print(time_start1, time_start2, time_end1)
+    #             # print(flares_overlap)
+    #             # exit(1)
+    #             if flares_overlap:
+    #                 confusion_matrix[class_to_num(row1["xray_class"])][class_to_num(row2["xray_class"])] += 1
+    #                 flares_coincident = True
+    #                 break
+    #
+    #         coincident_flares.append(flares_coincident)
+    #         flares_coincident = False
+    #     df["is_coincident"] = coincident_flares
+    #     print("FINAL DF SHAPE BEFORE CONCAT", final_df.shape[0])
+    #     final_df = pd.concat([final_df, df])
+    #     print("FINAL DF SHAPE AFTER CONCAT", final_df.shape[0], df.shape[0])
+    # print(final_df.shape[0])
+    # print(total_shape)
+    # final_df.to_csv("all_flare_info_2.csv")
+    # exit(1)
+    #
+    # plt.figure(figsize=(16, 9))
+    # sns.heatmap(confusion_matrix, annot=True, cmap="Blues", cbar=False, fmt="d",
+    #             square=True, xticklabels=CLASS_LABELS, yticklabels=CLASS_LABELS)
+    # plt.title("Coinciding Flares Confusion Matrix")
+    # plt.tight_layout()
+    # # plt.legend(f"# of B Flares: {b_df.shape[0]}\n"
+    # #              f"# of C Flares: {c_df.shape[0]}\n"
+    # #              f"# of M Flares: {m_df.shape[0]}\n"
+    # #              f"# of X Flares: {x_df.shape[0]}",
+    # #              loc="best")
+    # plt.show()
+    #
+    # exit(1)
+    info_df = pd.read_csv("all_flare_info_2.csv")
+    coincident_info_df = info_df.loc[info_df["is_coincident"] == True]
+    noncoincident_info_df = info_df.loc[info_df["is_coincident"] == False]
 
-    exit(1)
-    coincident_info_df = pd.read_csv("coincident_flare_info.csv").drop("is_coincident", axis=1)
-    noncoincident_info_df = pd.read_csv("noncoincident_flare_info.csv").drop("is_coincident", axis=1)
-
-    for info_df in [coincident_info_df, noncoincident_info_df]:
+    for info_df, label in [(coincident_info_df, "COINCIDENT"), (noncoincident_info_df, "NONCOINCIDENT")]:
         for time_string in ["time_start", "time_peak", "time_end"]:
             info_df[time_string] = \
                 info_df[time_string].apply(parse_tai_string)
+            info_df.reset_index(inplace=True)
+            info_df.drop(["index"], axis=1, inplace=True)
+        print(label)
 
-    print(coincident_info_df)
-    print(noncoincident_info_df)
+        b_df = info_df.loc[info_df["xray_class"] == "B"]
+        c_df = info_df.loc[info_df["xray_class"] == "C"]
+        m_df = info_df.loc[info_df["xray_class"] == "M"]
+        x_df = info_df.loc[info_df["xray_class"] == "X"]
 
-    data_df = pd.concat([abc_properties_df, mx_properties_df])
+        print(f"# of B Flares: {b_df.shape[0]}\n"
+                     f"# of C Flares: {c_df.shape[0]}\n"
+                     f"# of M Flares: {m_df.shape[0]}\n"
+                     f"# of X Flares: {x_df.shape[0]}")
+
+    # data_df = pd.concat([abc_properties_df, mx_properties_df])
     # data_df["T_REC"] = data_df["T_REC"].apply(parse_tai_string)
 
-    def info_to_data(info, data):
+    def info_to_data(info):
         df = pd.DataFrame()
         for index, row in info.iterrows():
+            flare_class = row["xray_class"]
+            if flare_class in ["B", "C"]:
+                data = abc_properties_df
+            else:
+                data = mx_properties_df
             print(f"{index}/{info.shape[0]}")
             timestamp = row["time_start"] - datetime.timedelta(0, 3600 * 6)
             nar_df = data.loc[data["NOAA_AR"] == row["nar"]]
@@ -207,8 +245,31 @@ def main():
         df.drop("index", axis=1, inplace=True)
         return df
 
-    coincident_flares = info_to_data(coincident_info_df, data_df)
-    noncoincident_flares = info_to_data(noncoincident_info_df, data_df)
+
+    coincident_flares = info_to_data(coincident_info_df)
+    noncoincident_flares = info_to_data(noncoincident_info_df)
+    for df, label in [(coincident_flares, "Coincident"), (noncoincident_flares, "Noncoincident")]:
+        lda = LinearDiscriminantAnalysis()
+        X = df.drop(["T_REC", "NOAA_AR", "xray_class"], axis=1)
+        y = df["xray_class"]
+        data_lda = lda.fit_transform(X.to_numpy(), y.to_numpy())
+        data_lda = pd.DataFrame(data_lda, columns=["LD1", "LD2", "LD3"])
+        data_lda["xray_class"] = y
+
+        # plt.figure()
+        # colors = ['c', 'g', 'orange', "r"]
+        # for color, i, target_name in zip(colors, CLASS_LABELS, CLASS_LABELS):
+        #     plt.scatter(data_lda[y == i, 0], data_lda[y == i, 1], alpha=.8,
+        #                 color=color,
+        #                 label=target_name)
+
+        fig = px.scatter_3d(data_lda, x="LD1", y="LD2", z="LD3",
+                            color="xray_class",
+                            title=f"LDA {label} BCMX Class Flares ({df.shape[0]} Flares)")
+        fig.write_html(f"bcmx_3d_{label}.html")
+    exit(1)
+
+
 
     pair_labels = ["BC", "MX", "BX", "CM"]
 

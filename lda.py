@@ -247,7 +247,7 @@ def main():
     # X = time_start_df.drop("xray_class", axis=1)
     # y = time_start_df["xray_class"]
     # data_lda = lda.fit_transform(X.to_numpy(), y.to_numpy())
-
+    #
     # ev = lda.explained_variance_ratio_
     # iris_pc = [f"LD{i}" for i in range(1, len(ev) + 1)]
     # plt.title("Non-Correlative Parameters LDA, All Flare Classes")
@@ -258,10 +258,10 @@ def main():
     #           align="center", color="y")
     # plt.show()
     # exit(1)
-
+    #
     # data_lda = pd.DataFrame(data_lda, columns=["LD1", "LD2", "LD3"])
-
-
+    #
+    #
     # plt.figure()
     # colors = ['c', 'g', 'orange', "r"]
     # for color, i, target_name in zip(colors, CLASS_LABELS, CLASS_LABELS):

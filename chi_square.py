@@ -107,7 +107,7 @@ to_drop = [
 def main():
     labels = ["B", "C", "M", "X"]
     for label in labels:
-        df = pd.read_csv(f"24_average_{label.lower()}_all_sum_to_one.csv")
+        df = pd.read_csv(f"24_average_{label.lower()}_all_binned.csv")
         x2 = np.zeros((7, 7), dtype=float)
 
         def property_to_num(property):
@@ -120,6 +120,8 @@ def main():
             for property2 in other_properties:
                 f_obs = df[property1]
                 f_exp = df[property2]
+                norm_factor = f_obs.sum() / f_exp.sum()
+                f_obs /= norm_factor
                 chisq, p = chisquare(f_obs, f_exp)
                 x2[property_to_num(property1)][property_to_num(property2)] = chisq
 
@@ -131,8 +133,10 @@ def main():
         # plt.title(f"{flare_class} Flares (Mean {time_range}h Time Series)")
         plt.tight_layout()
         plt.show()
-        plt.savefig(f"chi_square/{label.lower()}_24h_average_chi_square_test")
+        plt.savefig(f"chi_square/{label.lower()}_24h_average_chi_square_test2")
         print(x2)
+
+
     # print(x_df)
     # # exit(1)
     #
