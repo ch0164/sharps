@@ -23,6 +23,7 @@ import pandas as pd
 from sklearn.preprocessing import PolynomialFeatures, MinMaxScaler
 import csv
 import plotly.express as px
+import plotly.graph_objects as go
 
 FLARE_PROPERTIES = [
     'ABSNJZH',
@@ -261,53 +262,56 @@ def main():
 
     coincident_flares = info_to_data(coincident_info_df)
     noncoincident_flares = info_to_data(noncoincident_info_df)
-    for df, label in [(coincident_flares, "Coincident"), (noncoincident_flares, "Noncoincident")]:
-        lda = LinearDiscriminantAnalysis()
-        X = df.drop(["T_REC", "NOAA_AR", "xray_class"] + to_drop, axis=1)
-        y = df["xray_class"]
-        data_lda = lda.fit_transform(X.to_numpy(), y.to_numpy())
-        data_lda = pd.DataFrame(data_lda, columns=["LD1", "LD2", "LD3"])
-        data_lda["xray_class"] = y
-
-        # plt.figure()
-        # colors = ['c', 'g', 'orange', "r"]
-        # for color, i, target_name in zip(colors, CLASS_LABELS, CLASS_LABELS):
-        #     plt.scatter(data_lda[y == i, 0], data_lda[y == i, 1], alpha=.8,
-        #                 color=color,
-        #                 label=target_name)
-
-        fig = px.scatter_3d(data_lda, x="LD1", y="LD2", z="LD3",
-                            color="xray_class",
-                            title=f"24h Range LDA {label} BCMX Class Flares ({df.shape[0]} Flares)",
-                            opacity=0.7)
-        fig.write_html(f"bcmx_3d_{label.lower()}.html")
-    exit(1)
+    # for df, label in [(coincident_flares, "Coincident"), (noncoincident_flares, "Noncoincident")]:
+    #     lda = LinearDiscriminantAnalysis()
+    #     X = df.drop(["T_REC", "NOAA_AR", "xray_class"] + to_drop, axis=1)
+    #     y = df["xray_class"]
+    #     data_lda = lda.fit_transform(X.to_numpy(), y.to_numpy())
+    #     data_lda = pd.DataFrame(data_lda, columns=["LD1", "LD2", "LD3"])
+    #     data_lda["xray_class"] = y
+    #
+    #     # plt.figure()
+    #     # colors = ['c', 'g', 'orange', "r"]
+    #     # for color, i, target_name in zip(colors, CLASS_LABELS, CLASS_LABELS):
+    #     #     plt.scatter(data_lda[y == i, 0], data_lda[y == i, 1], alpha=.8,
+    #     #                 color=color,
+    #     #                 label=target_name)
+    #
+    #     fig = px.scatter_3d(data_lda, x="LD1", y="LD2", z="LD3",
+    #                         color="xray_class",
+    #                         title=f"24h Range LDA {label} BCMX Class Flares ({df.shape[0]} Flares)",
+    #                         opacity=0.7)
+    #     fig.write_html(f"bcmx_3d_{label.lower()}.html")
+    # exit(1)
 
 
 
     pair_labels = ["BC", "MX", "BX", "CM"]
 
     for data_df, is_coincident in zip([noncoincident_flares, coincident_flares], ["noncoincident", "coincident"]):
-        for pair_label in pair_labels:
-            if ("M" in pair_label or "X" in pair_label) and is_coincident == "coincident":
-                continue
-            df = pd.concat([data_df.loc[data_df["xray_class"] == pair_label[0]],
-                           data_df.loc[data_df["xray_class"] == pair_label[1]]])
-            n = 6
-            pc_labels = [f"PC{i}" for i in range(1, n + 1)]
-            pca = PCA(n_components=n)
-            flare_pca = df.drop(["xray_class", "T_REC", "NOAA_AR"], axis=1)
-            flare_pca = pca.fit_transform(MinMaxScaler().fit_transform(flare_pca))
-            pca_df = pd.DataFrame(data=flare_pca, columns=pc_labels)
-            print(pca_df, pca_df.columns)
-            pca_df["xray_class"] = pd.Series(data_df["xray_class"])
+        df = data_df
+        n = 6
+        pc_labels = [f"PC{i}" for i in range(1, n + 1)]
+        pca = PCA(n_components=n)
+        flare_pca = df.drop(["xray_class", "T_REC", "NOAA_AR"], axis=1)
+        flare_pca = pca.fit_transform(MinMaxScaler().fit_transform(flare_pca))
+        print(pca.components_)
+        pca_df = pd.DataFrame(data=flare_pca, columns=pc_labels)
+        print(pca_df, pca_df.columns)
+        pca_df["xray_class"] = pd.Series(data_df["xray_class"])
 
-            # df = pd.concat([pca_df, data_df["xray_class"]], axis=1, ignore_index=True)
-            ev = pca.explained_variance_ratio_[0] + pca.explained_variance_ratio_[1] + pca.explained_variance_ratio_[2]
-            fig = px.scatter_3d(pca_df, x="PC1", y="PC2", z="PC3", color="xray_class",
-                                title=f"{pair_label} {is_coincident.capitalize()} PCA ({df.shape[0]} Flares) Total "
-                                      f"Explained Variance: {ev}")
-            fig.write_html(f"multiple_solar_events/pca/24h/{pair_label}_{is_coincident}.html")
+        # df = pd.concat([pca_df, data_df["xray_class"]], axis=1, ignore_index=True)
+        ev = pca.explained_variance_ratio_[0] + pca.explained_variance_ratio_[1] + pca.explained_variance_ratio_[2]
+
+        df1 = pd.DataFrame(pca.components_.transpose()[:1], columns=pc_labels)
+        df2 = pd.DataFrame(pca.components_.transpose()[1:2], columns=pc_labels)
+        fig1 = px.line_3d(df1, x="PC1", y="PC2", z="PC3")
+        fig2 = px.line_3d(df2, x="PC1", y="PC2", z="PC3")
+        fig = go.Figure(data=fig1.data + fig2.data)
+        # fig = px.scatter_3d(pca_df, x="PC1", y="PC2", z="PC3", color="xray_class",
+        #                     title=f"{'BCMX'} {is_coincident.capitalize()} PCA ({df.shape[0]} Flares) Total "
+        #                           f"Explained Variance: {ev}")
+        fig.write_html(f"multiple_solar_events/pca/24h/{'BCMX'}_{is_coincident}2.html")
 
 
     # Get B and C class flares, round down their minutes.
