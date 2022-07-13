@@ -41,7 +41,7 @@ FLARE_PROPERTIES = [
     'SHRGT45',
     'TOTPOT',
     'TOTUSJH',
-    # 'TOTUSJZ',
+    'TOTUSJZ',
     'USFLUX',
 ]
 
@@ -109,10 +109,10 @@ def main():
     n = len(UNIQUE_PROPERTIES)
 
     for is_coincident in ["Coincident", "Noncoincident"]:
-        plt.clf()
+        # plt.clf()
         # for label in labels:
-        #     df = pd.read_csv(f"24_average_{label.lower()}_all.csv")
-        #     new_df = pd.DataFrame(columns=FLARE_PROPERTIES, index=range(24))
+        #     df = pd.read_csv(f"24_average_{label.lower()}_{is_coincident.lower()}.csv")
+        #     new_df = pd.DataFrame(columns=UNIQUE_PROPERTIES, index=range(24))
         #     bins = []
         #     for hour in range(0, 24):
         #         if hour == 0:
@@ -127,14 +127,14 @@ def main():
         #     for hour in range(0, 24):
         #         bin_ = bins[hour]
         #         data_points = df.iloc[bin_, :]
-        #         for flare_property in FLARE_PROPERTIES:
+        #         for flare_property in UNIQUE_PROPERTIES:
         #             new_df[flare_property][hour] = data_points[
         #                 flare_property].mean()
         #     print(new_df)
-        #     new_df.to_csv(f"24_average_{label.lower()}_{is_coincident}_binned.csv")
+        #     new_df.to_csv(f"chi_square/{is_coincident.lower()}/24_average_{label.lower()}_{is_coincident.lower()}_binned.csv")
 
         for label in labels:
-            df = pd.read_csv(f"24_average_{label.lower()}_all_binned.csv")
+            df = pd.read_csv(f"chi_square/{is_coincident.lower()}/24_average_{label.lower()}_{is_coincident.lower()}_binned.csv")
             x2 = np.zeros((n, n), dtype=float)
 
             def property_to_num(property):
@@ -152,13 +152,43 @@ def main():
 
 
             # print(x_df)
-            # plt.figure(figsize=(12, 12))
-            sns.heatmap(x2, annot=True, cmap="Blues", cbar=False, fmt=".3f",
+            simple_matrix = np.zeros(x2.shape)
+            for i, row in enumerate(x2):
+                for j, value in enumerate(row):
+                    if value >= 33.196:
+                        simple_matrix[i][j] = 1
+                    if value >= 36.415:
+                        simple_matrix[i][j] = 2
+                    if value >= 42.980:
+                        simple_matrix[i][j] = 3
+
+
+            # plt.figure(figsize=(15, 15))
+            # cmap = ListedColormap(["red", "green", "blue"])
+            # ax = sns.heatmap(simple_matrix, annot=False, cmap=cmap, cbar=False, #fmt=".3f",
+            #             square=True, xticklabels=UNIQUE_PROPERTIES, yticklabels=UNIQUE_PROPERTIES)
+            # colorbar = ax.collections[0].colorbar
+            # colorbar.set_ticks([0, 1, 2])
+            # colorbar.set_ticklabels(['Accept', 'Reject (95% Confidence)', 'Reject (95% Confidence)'])
+
+            colors = {"gray": 0, "red": 1, "yellow": 2, "blue": 3}
+            l_colors = sorted(colors, key=colors.get)
+            import matplotlib.colors as c
+            cMap = c.ListedColormap(l_colors)
+            ax = sns.heatmap(simple_matrix, cmap=l_colors, vmin=0, vmax=len(colors), linecolor="black", linewidth=2,
+                             annot=x2, fmt=".3f",
                         square=True, xticklabels=UNIQUE_PROPERTIES, yticklabels=UNIQUE_PROPERTIES)
-            plt.title(f"Chi-Square Test of Non-Correlative Parameters\n over 24h Average Timeline ({label} Class {is_coincident} Flares)")
+            colorbar = ax.collections[0].colorbar
+            colorbar.set_ticks([0, 1, 2, 3])
+            colorbar.set_ticklabels(['Accept', 'Reject (90% Confidence)',
+                                     'Reject (95% Confidence)',
+                                     'Reject (99% Confidence)'])
+
+
+            plt.title(f"Chi-Square Test of Parameters\n over 24h Average Timeline ({label} Class {is_coincident} Flares)")
             # plt.title(f"{flare_class} Flares (Mean {time_range}h Time Series)")
             plt.tight_layout()
-            plt.savefig(f"chi_square/noncorrelative_{label.lower()}_24h_average_chi_square_{is_coincident.lower()}")
+            plt.savefig(f"chi_square/{is_coincident.lower()}/noncorrelative_{label.lower()}_24h_average_chi_square")
             plt.show()
             print(x2)
 
