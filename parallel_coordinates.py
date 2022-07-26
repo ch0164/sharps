@@ -161,7 +161,7 @@ def main():
     flares_df[columns] = MinMaxScaler().fit_transform(flares_df[columns])
 
     # Plot the complete set of flares for all classes.
-    plt.style.use('dark_background')
+    # plt.style.use('dark_background')
     fig = plt.figure(figsize=(25, 12))
     pd.plotting.parallel_coordinates(flares_df
                                      .drop("T_REC", axis=1).
@@ -240,20 +240,20 @@ def main():
 
     # Plot boxplots for all classes.
     plt.style.use("default")
-    for flare_class in CLASS_LABELS:
-        fig = plt.figure(figsize=(25, 12))
-        if flare_class in ["B", "C"]:
-            flare_data = bc_data[bc_data["CLASS"] == flare_class]
-        else:
-            flare_data = mx_data[mx_data["CLASS"] == flare_class]
-        flare_data[columns] = MinMaxScaler().fit_transform(flare_data[columns])
-        flare_data.boxplot(columns)
-        fig.suptitle(f"{flare_class} Class Flare ({time_label})\n"
-                     f"{flare_data.shape[0]} datapoints", fontsize=20)
-        fig.tight_layout()
-        fig.show()
-        fig.savefig(
-            f"parallel_coordinates/{time_label}/{flare_class}_boxplot.png")
+    # for flare_class in CLASS_LABELS:
+    #     fig = plt.figure(figsize=(25, 12))
+    #     if flare_class in ["B", "C"]:
+    #         flare_data = bc_data[bc_data["CLASS"] == flare_class]
+    #     else:
+    #         flare_data = mx_data[mx_data["CLASS"] == flare_class]
+    #     flare_data[columns] = MinMaxScaler().fit_transform(flare_data[columns])
+    #     flare_data.boxplot(columns)
+    #     fig.suptitle(f"{flare_class} Class Flare ({time_label})\n"
+    #                  f"{flare_data.shape[0]} datapoints", fontsize=20)
+    #     fig.tight_layout()
+    #     fig.show()
+    #     fig.savefig(
+    #         f"parallel_coordinates/{time_label}/{flare_class}_boxplot.png")
 
 
 
