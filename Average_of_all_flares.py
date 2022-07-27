@@ -26,6 +26,8 @@ FLARE_PROPERTIES = [
     'USFLUX',
 ]
 
+FLARE_PROPERTIES += ['d_l_f', 'g_s', 'slf']
+
 to_drop = [
     'MEANGBZ',
     'MEANGBH',
@@ -83,9 +85,9 @@ def main():
     info_df = pd.read_csv("all_flare_info_2.csv")
     # info_df = pd.read_csv("noncoincident_flare_info.csv")
 
-    abc_properties = pd.read_csv("Data_ABC.csv")
+    abc_properties = pd.read_csv("Data_ABC_with_Korsos_parms.csv")
     abc_properties.dropna(inplace=True)
-    mx_properties = pd.read_csv("Data_MX.csv")
+    mx_properties = pd.read_csv("Data_MX_with_Korsos_parms.csv")
     mx_properties.dropna(inplace=True)
 
     def info_to_data(info):
@@ -141,8 +143,11 @@ def main():
     info_df["xray_class"] = \
         info_df["xray_class"].apply(classify_flare)
 
-    labels = ["X", "M", "C", "B"]
-    colors = ["red", "orange", "green", "blue"]
+    # labels = ["X", "M", "C", "B"]
+    # colors = ["red", "orange", "green", "blue"]
+
+    labels = ["B", "C", "M", "X"]
+    colors = ["blue", "green", "orange", "red"]
 
     # labels = ["X"]
     # colors = ["red"]
@@ -151,26 +156,31 @@ def main():
     # colors = ["cyan"]
 
 
-    info_df = coincident_info_df
+    # info_df = coincident_info_df
     # info_df = noncoincident_info_df
 
     # is_coincident = "all"
-    is_coincident = "coincident"
+    # is_coincident = "coincident"
     # is_coincident = "noncoincident"
 
+    idealized_flares = "idealized_flares2"
+
     for is_coincident in ["all", "coincident", "noncoincident"]:
-        fig, ax = plt.subplots(6, 3, figsize=(18, 20))
-        min_max_csv = f"idealized_flares/{is_coincident}/24_average_flares_min_max.csv"
+        # average_dfs = pd.DataFrame()
+        fig, ax = plt.subplots(7, 3, figsize=(20, 22))
+        min_max_csv = f"{idealized_flares}/{is_coincident}/24_average_flares_min_max.csv"
         min_max_df = pd.read_csv(min_max_csv)
         for label, color in zip(labels, colors):
-            csv = f"idealized_flares/{is_coincident}/{label}_idealized_flare.csv"
+            csv = f"{idealized_flares}/{is_coincident}/{label}_idealized_flare.csv"
             df_ave = pd.read_csv(csv)
+            print(df_ave)
 
-            for flare_property in FLARE_PROPERTIES:
-                x = df_ave[flare_property]
-                maximum = min_max_df[flare_property][1]
-                minimum = min_max_df[flare_property][0]
-                df_ave[flare_property] = (x - minimum) / (maximum - minimum)
+            # for flare_property in FLARE_PROPERTIES:
+            #     x = df_ave[flare_property]
+            #     maximum = min_max_df[flare_property][1]
+            #     minimum = min_max_df[flare_property][0]
+            #     df_ave[flare_property] = (x - minimum) / (maximum - minimum)
+            # print(df_ave)
 
             # Plot specified flare properties over the specified time.
             row, col = 0, 0
@@ -201,91 +211,91 @@ def main():
                     row += 1
 
         fig.tight_layout()
-        fig.savefig(f'idealized_flares/{is_coincident}/24h_idealized_flare_global_normalization_errorbar.png')
+        fig.savefig(f'{idealized_flares}/{is_coincident}/24h_idealized_flare_raw_errorbar.png')
+        # plt.savefig(f'{idealized_flares}/{is_coincident}/24h_idealized_flare_global_normalization_errorbar.png')
         fig.show()
-        # plt.savefig(f'idealized_flares/{is_coincident}/24h_idealized_flare_global_normalization_errorbar.png')
 
 
 
-        # temp_df = info_df
-        # info_df = info_df.loc[info_df["xray_class"] == label]
-        # info_df.reset_index(inplace=True)
-        # for flare_index, row in info_df.iterrows():
-        #     print(flare_index, "/", info_df.shape[0])
-        #     # Find NOAA AR number and timestamp from user input in info dataframe.
-        #     noaa_ar = row["nar"]
-        #     timestamp = floor_minute(row["time_start"])
-        #     start_time = row["time_start"]
-        #     flare_class = row["xray_class"]
-        #
-        #     if flare_class in ["B", "C"]:
-        #         properties_df = abc_properties
-        #     else:
-        #         properties_df = mx_properties
-        #
-        #     # Find corresponding ending index in properties dataframe.
-        #     end_series = properties_df.loc[properties_df["T_REC"] == timestamp]
-        #     if end_series.empty or (
-        #     end_series.loc[end_series['NOAA_AR'] == noaa_ar]).empty:
-        #         continue
-        #     end_index = \
-        #     end_series.loc[end_series['NOAA_AR'] == noaa_ar].index.tolist()[0]
-        #
-        #     # Find corresponding starting index in properties dataframe, if it exists.
-        #     start_index = end_index
-        #     for i in range(time_range * 5 - 1):
-        #         if end_index - i >= 0:
-        #             if properties_df["NOAA_AR"][end_index - i] == noaa_ar:
-        #                 start_index = end_index - i
-        #
-        #     # Make sub-dataframe of this flare
-        #     local_properties_df = properties_df.iloc[start_index:end_index + 1]
-        #
-        #     df_1 = pd.DataFrame(columns=FLARE_PROPERTIES)
-        #     df_2 = pd.DataFrame(columns=FLARE_PROPERTIES)
-        #     for flare_property in FLARE_PROPERTIES:
-        #         df_1[flare_property] = np.zeros(time_range * 5)
-        #         df_2[flare_property] = np.zeros(time_range * 5)
-        #         for i in range(time_range * 5 - 1, -1, -1):
-        #             local_df_ind = end_index - (time_range * 5 - 1 - i)
-        #             if local_df_ind >= 0 and local_df_ind >= start_index:
-        #                 df_1.at[i, flare_property] = local_properties_df.at[
-        #                     local_df_ind, flare_property]
-        #             if df_1.at[i, flare_property] != 0:
-        #                 df_2.at[i, flare_property] = 1
-        #
-        #     local_properties_df.loc[:, 'xray_class'] = flare_class
-        #     local_properties_df.loc[:, 'time_start'] = start_time
-        #     # local_properties_df.loc[:, 'flare_index'] = flare_index
-        #     df_needed = pd.concat([df_needed, local_properties_df])
-        #
-        #     df_1_sum = df_1_sum.add(df_1)
-        #     df_2_sum = df_2_sum.add(df_2)
-        #
-        # # print(df_1_sum)
-        # # print(df_2_sum)
-        # # print(df_needed)
-        # # df_needed.to_csv('MX_data_bernard.csv')
-        #
-        # df_ave = df_1_sum.div(df_2_sum)
-        # df_ave.to_csv(f"idealized_flares/{is_coincident}/{label}_idealized_flare.csv")
-        # average_dfs = pd.concat([average_dfs, df_ave])
+            # temp_df = info_df
+            # info_df = info_df.loc[info_df["xray_class"] == label]
+            # info_df.reset_index(inplace=True)
+            # for flare_index, row in info_df.iterrows():
+            #     print(flare_index, "/", info_df.shape[0])
+            #     # Find NOAA AR number and timestamp from user input in info dataframe.
+            #     noaa_ar = row["nar"]
+            #     timestamp = floor_minute(row["time_start"])
+            #     start_time = row["time_start"]
+            #     flare_class = row["xray_class"]
+            #
+            #     if flare_class in ["B", "C"]:
+            #         properties_df = abc_properties
+            #     else:
+            #         properties_df = mx_properties
+            #
+            #     # Find corresponding ending index in properties dataframe.
+            #     end_series = properties_df.loc[properties_df["T_REC"] == timestamp]
+            #     if end_series.empty or (
+            #     end_series.loc[end_series['NOAA_AR'] == noaa_ar]).empty:
+            #         continue
+            #     end_index = \
+            #     end_series.loc[end_series['NOAA_AR'] == noaa_ar].index.tolist()[0]
+            #
+            #     # Find corresponding starting index in properties dataframe, if it exists.
+            #     start_index = end_index
+            #     for i in range(time_range * 5 - 1):
+            #         if end_index - i >= 0:
+            #             if properties_df["NOAA_AR"][end_index - i] == noaa_ar:
+            #                 start_index = end_index - i
+            #
+            #     # Make sub-dataframe of this flare
+            #     local_properties_df = properties_df.iloc[start_index:end_index + 1]
+            #
+            #     df_1 = pd.DataFrame(columns=FLARE_PROPERTIES)
+            #     df_2 = pd.DataFrame(columns=FLARE_PROPERTIES)
+            #     for flare_property in FLARE_PROPERTIES:
+            #         df_1[flare_property] = np.zeros(time_range * 5)
+            #         df_2[flare_property] = np.zeros(time_range * 5)
+            #         for i in range(time_range * 5 - 1, -1, -1):
+            #             local_df_ind = end_index - (time_range * 5 - 1 - i)
+            #             if local_df_ind >= 0 and local_df_ind >= start_index:
+            #                 df_1.at[i, flare_property] = local_properties_df.at[
+            #                     local_df_ind, flare_property]
+            #             if df_1.at[i, flare_property] != 0:
+            #                 df_2.at[i, flare_property] = 1
+            #
+            #     local_properties_df.loc[:, 'xray_class'] = flare_class
+            #     local_properties_df.loc[:, 'time_start'] = start_time
+            #     # local_properties_df.loc[:, 'flare_index'] = flare_index
+            #     df_needed = pd.concat([df_needed, local_properties_df])
+            #
+            #     df_1_sum = df_1_sum.add(df_1)
+            #     df_2_sum = df_2_sum.add(df_2)
+            #
+            # # print(df_1_sum)
+            # # print(df_2_sum)
+            # # print(df_needed)
+            # # df_needed.to_csv('MX_data_bernard.csv')
+            #
+            # df_ave = df_1_sum.div(df_2_sum)
+            # df_ave.to_csv(f"{idealized_flares}/{is_coincident}/{label}_idealized_flare.csv")
+            # average_dfs = pd.concat([average_dfs, df_ave])
 
-        # mins, maxes = [], []
-        # for flare_property in FLARE_PROPERTIES:
-        #     x = df_ave[flare_property]
-        #     # mins.append(x.min())
-        #     # maxes.append(x.max())
-        #     maximum = min_max_df[flare_property][1]
-        #     # minimum = x.min()
-        #     minimum = min_max_df[flare_property][0]
-        #     df_ave[flare_property] = (x - minimum) / (maximum - minimum)
-        # # min_max_df.loc[len(min_max_df.index)] = mins
-        # # min_max_df.loc[len(min_max_df.index)] = maxes
-        # # min_max_df.to_csv(csv)
-        # df_ave.to_csv(f"24_average_{label.lower()}_{is_coincident}_2.csv")
-        #
-        # info_df = temp_df
+            # mins, maxes = [], []
+            # for flare_property in FLARE_PROPERTIES:
+            #     x = df_ave[flare_property]
+            #     # mins.append(x.min())
+            #     # maxes.append(x.max())
+            #     maximum = min_max_df[flare_property][1]
+            #     # minimum = x.min()
+            #     minimum = min_max_df[flare_property][0]
+            #     df_ave[flare_property] = (x - minimum) / (maximum - minimum)
+            # min_max_df.loc[len(min_max_df.index)] = mins
+            # min_max_df.loc[len(min_max_df.index)] = maxes
+            # min_max_df.to_csv(csv)
+            # df_ave.to_csv(f"24_average_{label.lower()}_{is_coincident}.csv")
+
+            # info_df = temp_df
 
         # Below generates the CSV data for min/maxes.
         # mins, maxes = [], []
@@ -296,7 +306,7 @@ def main():
         #     maxes.append(x.max())
         # min_max_df.loc[len(min_max_df.index)] = mins
         # min_max_df.loc[len(min_max_df.index)] = maxes
-        # min_max_df.to_csv(csv)
+        # min_max_df.to_csv(min_max_csv)
 
 
 if __name__ == "__main__":
