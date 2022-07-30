@@ -67,24 +67,26 @@ def generate_idealized_statistics(is_coincident):
                 elif stat_label in "delta24h":
                     t0 = flare_df[flare_property][1]
                     t1 = flare_df[flare_property][flare_df.shape[0]]
-                    delta = abs(t1 - t0)
+                    delta = t1 - t0
                     df[flare_property] = [delta]
                 elif stat_label in "delta12h":
                     t0 = flare_df[flare_property][1]
                     t1 = flare_df[flare_property][flare_df.shape[0] // 2]
                     t2 = flare_df[flare_property][flare_df.shape[0]]
-                    delta1 = abs(t1 - t0)
-                    delta2 = abs(t2 - t1)
+                    delta1 = t1 - t0
+                    delta2 = t2 - t1
                     df[flare_property] = [delta1, delta2]
                 elif stat_label in "delta6h":
                     t0 = flare_df[flare_property][1]
                     t1 = flare_df[flare_property][flare_df.shape[0] // 4]
                     t2 = flare_df[flare_property][flare_df.shape[0] // 2]
-                    t3 = flare_df[flare_property][flare_df.shape[0]]
-                    delta1 = abs(t1 - t0)
-                    delta2 = abs(t2 - t1)
-                    delta3 = abs(t3 - t2)
-                    df[flare_property] = [delta1, delta2, delta3]
+                    t3 = flare_df[flare_property][(flare_df.shape[0] // 2) + (flare_df.shape[0] // 4)]
+                    t4 = flare_df[flare_property][flare_df.shape[0]]
+                    delta1 = t1 - t0
+                    delta2 = t2 - t1
+                    delta3 = t3 - t2
+                    delta4 = t4 - t3
+                    df[flare_property] = [delta1, delta2, delta3, delta4]
                 elif stat_label in "entropy":
                     df[flare_property] = [differential_entropy(flare_df[flare_property])]
             stat_df = statistics[stat_label]
@@ -94,7 +96,7 @@ def generate_idealized_statistics(is_coincident):
         if stat_label in "delta12h":
             new_labels = [f"{label}{number}" for label in flare_labels for number in [1, 2]]
         elif stat_label in "delta6h":
-            new_labels = [f"{label}{number}" for label in flare_labels for number in [1, 2, 3]]
+            new_labels = [f"{label}{number}" for label in flare_labels for number in [1, 2, 3, 4]]
         else:
             new_labels = flare_labels
         stat_df.index = new_labels
