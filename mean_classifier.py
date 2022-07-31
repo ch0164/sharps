@@ -1,12 +1,15 @@
 import datetime
 from datetime import datetime as dt_obj
 
+import pandas
 from matplotlib import pyplot as plt
 from sklearn import metrics
 import numpy as np
 import pandas as pd
 import seaborn as sns
 import os
+
+from sklearn.metrics import classification_report
 
 FLARE_PROPERTIES = [
     'ABSNJZH',
@@ -82,9 +85,15 @@ def flare_to_num(flare_label):
 
 def classify(mean_df, std_df, param, x):
     m_mean = mean_df[param][2]
-    # m_std = std_df[param][2]
+    m_std = std_df[param][2]
+    c_mean = mean_df[param][1]
+    c_std = std_df[param][1]
 
-    if x < m_mean:  #  + (3 * m_std)
+    new_mean1 = m_mean - m_std
+    new_mean2 = c_mean + c_std
+    new_mean = (new_mean1 + new_mean2) / 2
+
+    if x < new_mean:  #  + (3 * m_std)
         return "ABC"
     else:
         return "MX"
@@ -108,21 +117,22 @@ def main():
     root_directory = "classifiers/"
     data_directory = f"{root_directory}data_2014/"
 
-
-    info_df = pd.read_csv("new_flare_info.csv")
+    info_df = pd.read_csv(f"{root_directory}2013_2014_flare_info.csv")
     for time_string in ["time_start", "time_peak", "time_end"]:
         info_df[time_string] = \
             info_df[time_string].apply(parse_tai_string)
 
+    mean_df = pd.read_csv(f"{root_directory}mean_{'all'}.csv")
+    std_df = pd.read_csv(f"{root_directory}std_{'all'}.csv")
     for is_coincident in COINCIDENCES:
+        y_true, y_pred = [], []
         temp_df = info_df
+        new_df = pd.DataFrame()
         if is_coincident == "coincident":
             info_df = info_df.loc[info_df["is_coincident"] == True]
         elif is_coincident == "noncoincident":
             info_df = info_df.loc[info_df["is_coincident"] == False]
         accuracies = pd.DataFrame(columns=FLARE_PROPERTIES)
-        mean_df = pd.read_csv(f"{root_directory}mean_{is_coincident}.csv")
-        std_df = pd.read_csv(f"{root_directory}std_{is_coincident}.csv")
         for flare_property in FLARE_PROPERTIES:
             flare_conf = np.zeros((2, 2), dtype=int)
             for flare_index, row in info_df.iterrows():
@@ -164,6 +174,12 @@ def main():
 
                 mean = df_needed[flare_property].mean()
                 pred_class = classify(mean_df, std_df, flare_property, mean)
+                if flare_class in "ABC":
+                    y = "ABC"
+                else:
+                    y = "MX"
+                y_true.append(y)
+                y_pred.append(pred_class)
                 flare_class_num, pred_class_num = flare_to_num(flare_class), flare_to_num(pred_class)
                 if pred_class == flare_class:
                     flare_conf[flare_class_num][flare_class_num] += 1
@@ -183,7 +199,11 @@ def main():
             incorrect = flare_conf[0][1] + flare_conf[1][0]
             total = correct + incorrect
             accuracies[flare_property] = [correct / total]
+
         accuracies.to_csv(f"{root_directory}{is_coincident}/accuracies_{is_coincident}.csv")
+        cr = classification_report(y_true, y_pred, target_names=["ABC", "MX"], output_dict=True)
+        df = pandas.DataFrame(cr).transpose()
+        df.to_csv(f"{root_directory}{is_coincident}/classification_report_{is_coincident}.csv")
         info_df = temp_df
 
 
