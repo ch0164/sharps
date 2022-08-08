@@ -213,7 +213,7 @@ def main():
         for flare_property in FLARE_PROPERTIES:
             property_df = properties_df[["T_REC", flare_property]]
             print(property_df["T_REC"])
-            property_df.iloc[abc_start_index:abc_end_index].plot(
+            property_df.iloc[abc_start_index:abc_end_index].plot_pca(
                 x="T_REC", y=flare_property, ax=ax[row, col], legend=False)
             ax[row, col].set_ylabel(flare_property)
             ax[row, col].set_title(
