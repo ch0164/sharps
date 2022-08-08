@@ -213,7 +213,7 @@ def generate_data(coincidence):
     print(df)
 
 
-def plot_reduced_scatter_matrix(df, coincidence):
+def plot_reduced_scatter_matrix(df, coincidence, experiment):
     n_components = 4
     target = df["xray_class"]
     df = df.drop("xray_class", axis=1)
@@ -232,13 +232,13 @@ def plot_reduced_scatter_matrix(df, coincidence):
         color=target,
         dimensions=range(n_components),
         labels=labels,
-        title=f'Total Explained Variance: {total_var:.2f}% ({coincidence.capitalize()}, 12h Timepoint Before Flare)',
+        title=f'Total Explained Variance: {total_var:.2f}% ({coincidence.capitalize()}, {experiment.replace("_", " ")} Before Flare)',
     )
     fig.update_traces(diagonal_visible=False)
-    fig.write_html(f"pca2/{coincidence}/12h_timepoint/reduced_scatter_matrix.html")
+    fig.write_html(f"pca2/{coincidence}/{experiment}/reduced_scatter_matrix.html")
 
 
-def plot_scatter_3d(df, coincidence):
+def plot_scatter_3d(df, coincidence, experiment):
     target = df["xray_class"]
     df = df.drop("xray_class", axis=1)
 
@@ -252,34 +252,37 @@ def plot_scatter_3d(df, coincidence):
 
     fig = px.scatter_3d(
         components, x=0, y=1, z=2, color=target,
-        title=f'Total Explained Variance: {total_var:.2f}% ({coincidence.capitalize()}, 12h Timepoint Before Flare)',
+        title=f'Total Explained Variance: {total_var:.2f}% ({coincidence.capitalize()}, {experiment.replace("_", " ")} Before Flare)',
         labels={'0': 'PC 1', '1': 'PC 2', '2': 'PC 3'}
     )
 
-    fig.write_html(f"pca2/{coincidence}/12h_timepoint/pca_3d.html")
+    fig.write_html(f"pca2/{coincidence}/{experiment}/pca_3d.html")
 
 
 
-def plot_scatter_matrix(data, coincidence):
+def plot_scatter_matrix(data, coincidence, experiment):
     fig = px.scatter_matrix(
         data,
         dimensions=FLARE_PROPERTIES,
         color="xray_class",
         width=2000,
         height=2000,
-        title=f"({coincidence.capitalize()}, 12h Timepoint Before Flare)"
+        title=f"({coincidence.capitalize()}, {experiment.replace('_', ' ')} Before Flare)"
     )
     fig.update_traces(diagonal_visible=False)
-    fig.write_html(f"pca2/{coincidence}/12h_timepoint/scatter_matrix.html")
+    fig.write_html(f"pca2/{coincidence}/{experiment}/scatter_matrix.html")
 
 
 
 if __name__ == "__main__":
     for coincidence in COINCIDENCES:
         # df = generate_data(coincidence)
-        df = pd.read_csv(f"pca2/singh_prime_flare_data_12h_timepoint_{coincidence}.csv")
+        # experiment = "12h_timepoint"
+        experiment = "24h_mean"
+
+        df = pd.read_csv(f"pca2/singh_prime_flare_data_{experiment}_{coincidence}.csv")
         df = df.drop(["is_coincident", "Unnamed: 0"], axis=1)
-        plot_reduced_scatter_matrix(df, coincidence)
-        plot_scatter_matrix(df, coincidence)
-        plot_scatter_3d(df, coincidence)
+        plot_reduced_scatter_matrix(df, coincidence, experiment)
+        plot_scatter_matrix(df, coincidence, experiment)
+        plot_scatter_3d(df, coincidence, experiment)
     # main()
