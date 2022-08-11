@@ -38,6 +38,13 @@
             </Attribute>
           </value>
         </entry>
+        <entry key="\classifiers\std_all.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
         <entry key="\idealized_flares2\all\24_average_flares_min_max_all.csv">
           <value>
             <Attribute>
