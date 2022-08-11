@@ -125,7 +125,6 @@ def main():
     mean_df = pd.read_csv(f"{root_directory}mean_{'all'}.csv")
     std_df = pd.read_csv(f"{root_directory}std_{'all'}.csv")
     for is_coincident in COINCIDENCES:
-        y_true, y_pred = [], []
         temp_df = info_df
         new_df = pd.DataFrame()
         if is_coincident == "coincident":
@@ -134,6 +133,7 @@ def main():
             info_df = info_df.loc[info_df["is_coincident"] == False]
         accuracies = pd.DataFrame(columns=FLARE_PROPERTIES)
         for flare_property in FLARE_PROPERTIES:
+            y_true, y_pred = [], []
             flare_conf = np.zeros((2, 2), dtype=int)
             for flare_index, row in info_df.iterrows():
                 df_needed = pd.DataFrame(columns=FLARE_PROPERTIES)
@@ -200,10 +200,11 @@ def main():
             total = correct + incorrect
             accuracies[flare_property] = [correct / total]
 
+            cr = classification_report(y_true, y_pred, target_names=["ABC", "MX"], output_dict=True)
+            df = pandas.DataFrame(cr).transpose()
+            df.to_csv(f"{root_directory}{is_coincident}/classification_reports/{flare_property}_classification_report_{is_coincident}.csv")
+
         accuracies.to_csv(f"{root_directory}{is_coincident}/accuracies_{is_coincident}.csv")
-        cr = classification_report(y_true, y_pred, target_names=["ABC", "MX"], output_dict=True)
-        df = pandas.DataFrame(cr).transpose()
-        df.to_csv(f"{root_directory}{is_coincident}/classification_report_{is_coincident}.csv")
         info_df = temp_df
 
 
