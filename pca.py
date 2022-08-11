@@ -12,6 +12,7 @@ import os
 from sklearn.decomposition import PCA
 from sklearn.metrics import classification_report
 import plotly.express as px
+from sklearn.preprocessing import MinMaxScaler
 
 FLARE_PROPERTIES = [
     'ABSNJZH',
@@ -73,22 +74,6 @@ def flare_to_num(flare_label):
         return 1
 
 
-def classify(mean_df, std_df, param, x):
-    m_mean = mean_df[param][2]
-    m_std = std_df[param][2]
-    c_mean = mean_df[param][1]
-    c_std = std_df[param][1]
-
-    new_mean1 = m_mean - m_std
-    new_mean2 = c_mean + c_std
-    new_mean = (new_mean1 + new_mean2) / 2
-
-    if x < new_mean:  #  + (3 * m_std)
-        return "ABC"
-    else:
-        return "MX"
-
-
 time_range = 12
 abc_properties_df = pd.read_csv("Data_ABC_with_Korsos_parms.csv")
 mx_properties_df = pd.read_csv("Data_MX_with_Korsos_parms.csv")
@@ -125,7 +110,7 @@ def main():
             print(flare_index, "/", info_df.shape[0])
             # Find NOAA AR number and timestamp from user input in info dataframe.
             noaa_ar = row["nar"]
-            timestamp = floor_minute(row["time_start"]) - datetime.timedelta(0, 12 * 60 * 60)
+            timestamp = floor_minute(row["time_start"]) - datetime.timedelta(0, 12 * 3600)
             flare_class = row["xray_class"]
             coincidence = row["is_coincident"]
 
@@ -219,6 +204,9 @@ def plot_reduced_scatter_matrix(df, coincidence, experiment):
     df = df.drop("xray_class", axis=1)
 
     pca = PCA(n_components=n_components)
+    for name, values in df.iteritems():
+        min_value, max_value = df[name].min(), df[name].max()
+        df[name] = (df[name] - min_value) / (max_value - min_value)
     components = pca.fit_transform(df)
 
     total_var = pca.explained_variance_ratio_.sum() * 100
@@ -243,17 +231,22 @@ def plot_scatter_3d(df, coincidence, experiment):
     df = df.drop("xray_class", axis=1)
 
     n_components = 4
+    for name, values in df.iteritems():
+        min_value, max_value = df[name].min(), df[name].max()
+        df[name] = (df[name] - min_value) / (max_value - min_value)
     pca = PCA(n_components=n_components)
     components = pca.fit_transform(df)
 
     pc_labels = [f"PC {i+1}" for i in range(4)]
 
     total_var = pca.explained_variance_ratio_.sum() * 100
+    print(len(pca.components_))
+    print(pca.explained_variance_ratio_)
 
     fig = px.scatter_3d(
         components, x=0, y=1, z=2, color=target,
         title=f'Total Explained Variance: {total_var:.2f}% ({coincidence.capitalize()}, {experiment.replace("_", " ")} Before Flare)',
-        labels={'0': 'PC 1', '1': 'PC 2', '2': 'PC 3'}
+        labels=pc_labels
     )
 
     fig.write_html(f"pca2/{coincidence}/{experiment}/pca_3d.html")
@@ -277,8 +270,8 @@ def plot_scatter_matrix(data, coincidence, experiment):
 if __name__ == "__main__":
     for coincidence in COINCIDENCES:
         # df = generate_data(coincidence)
-        # experiment = "12h_timepoint"
-        experiment = "24h_mean"
+        experiment = "12h_timepoint"
+        # experiment = "24h_mean"
 
         df = pd.read_csv(f"pca2/singh_prime_flare_data_{experiment}_{coincidence}.csv")
         df = df.drop(["is_coincident", "Unnamed: 0"], axis=1)
