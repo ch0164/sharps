@@ -46,6 +46,8 @@ TIME_COMBINATIONS = [
     '6h-24h',
     '0h-24h'
 ]
+
+
 # COINCIDENCES = ["all"]
 
 
@@ -127,6 +129,29 @@ def sedi(conf_matrix):
     return numerator / denominator
 
 
+def hss1(conf_matrix):
+    tp, fp, fn, tn = ravel_conf_matrix(conf_matrix)
+    p = tp + fn
+    n = tn + fn
+    return (tp + tn - n) / p
+
+
+def hss2(conf_matrix):
+    tp, fp, fn, tn = ravel_conf_matrix(conf_matrix)
+    p = tp + fn
+    n = tn + fn
+    e = ((tp + fp) * (tp + fn) + (fp + tn) * (fn + tn)) / (p + n)
+    return (tp + tn - e) / (p + n - e)
+
+
+def gs(conf_matrix):
+    tp, fp, fn, tn = ravel_conf_matrix(conf_matrix)
+    p = tp + fn
+    n = tn + fn
+    ch = ((tp + fp) * (tp + fn)) / (p + n)
+    return (tp - ch) / (tp + fp + fn - ch)
+
+
 def main():
     time_range = 24
     flare_property = "R_VALUE"
@@ -151,8 +176,10 @@ def main():
             info_df[time_string].apply(parse_tai_string)
 
     for time_combo in TIME_COMBINATIONS:
-        mean_df = pd.read_csv(f"{stats_directory}{'all'}/{time_combo}/{time_combo}_mean_{'all'}.csv")
-        std_df = pd.read_csv(f"{stats_directory}{'all'}/{time_combo}/{time_combo}_std_{'all'}.csv")
+        mean_df = pd.read_csv(
+            f"{stats_directory}{'all'}/{time_combo}/{time_combo}_mean_{'all'}.csv")
+        std_df = pd.read_csv(
+            f"{stats_directory}{'all'}/{time_combo}/{time_combo}_std_{'all'}.csv")
         for is_coincident in COINCIDENCES:
             temp_df = info_df
             new_df = pd.DataFrame()
@@ -181,18 +208,21 @@ def main():
                     end_series = properties_df.loc[
                         properties_df["T_REC"] == timestamp]
                     if end_series.empty or (
-                            end_series.loc[end_series['NOAA_AR'] == noaa_ar]).empty:
+                            end_series.loc[
+                                end_series['NOAA_AR'] == noaa_ar]).empty:
                         continue
                     else:
                         end_index = \
                             end_series.loc[
-                                end_series['NOAA_AR'] == noaa_ar].index.tolist()[0]
+                                end_series[
+                                    'NOAA_AR'] == noaa_ar].index.tolist()[0]
 
                     # Find corresponding starting index in properties dataframe, if it exists.
                     start_index = end_index
                     for i in range(time_range * 5 - 1):
                         if end_index - i >= 0:
-                            if properties_df["NOAA_AR"][end_index - i] == noaa_ar:
+                            if properties_df["NOAA_AR"][
+                                end_index - i] == noaa_ar:
                                 start_index = end_index - i
 
                     # Make sub-dataframe of this flare
@@ -221,7 +251,8 @@ def main():
                 print(flare_conf)
                 sns.heatmap(flare_conf, annot=True, cmap="Blues", cbar=False,
                             fmt="d", square=True,
-                            xticklabels=["ABC", "MX"], yticklabels=["ABC", "MX"])
+                            xticklabels=["ABC", "MX"],
+                            yticklabels=["ABC", "MX"])
                 plt.title(f"Mean-based Prediction on {flare_property} for "
                           f"{is_coincident.capitalize()} Flares")
                 plt.tight_layout()
@@ -239,6 +270,9 @@ def main():
                     writer_obj = writer(f)
                     writer_obj.writerow([])
                     writer_obj.writerow(["TSS", tss(flare_conf)])
+                    writer_obj.writerow(["HSS1", hss1(flare_conf)])
+                    writer_obj.writerow(["HSS2", hss2(flare_conf)])
+                    writer_obj.writerow(["GS", gs(flare_conf)])
                     writer_obj.writerow(["ORSS", orss(flare_conf)])
                     writer_obj.writerow(["SEDI", sedi(flare_conf)])
 
@@ -253,6 +287,21 @@ def generate_report_summary():
             "noncoincident": []
         }
         tss = {
+            "all": [],
+            "coincident": [],
+            "noncoincident": []
+        }
+        hss1 = {
+            "all": [],
+            "coincident": [],
+            "noncoincident": []
+        }
+        hss2 = {
+            "all": [],
+            "coincident": [],
+            "noncoincident": []
+        }
+        gs = {
             "all": [],
             "coincident": [],
             "noncoincident": []
@@ -276,12 +325,20 @@ def generate_report_summary():
                             mx_recall[coincidence].append(line.split(",")[2])
                         elif "TSS" in line:
                             tss[coincidence].append(line.split(",")[1].strip())
+                        elif "HSS1" in line:
+                            hss1[coincidence].append(line.split(",")[1].strip())
+                        elif "HSS2" in line:
+                            hss2[coincidence].append(line.split(",")[1].strip())
+                        elif "GS" in line:
+                            gs[coincidence].append(line.split(",")[1].strip())
                         elif "ORSS" in line:
                             orss[coincidence].append(line.split(",")[1].strip())
                         elif "SEDI" in line:
                             sedi[coincidence].append(line.split(",")[1].strip())
-        with open(f"classifiers/{time_combo}_mean_classification_summary.csv", "w", newline="") as f:
+        with open(f"classifiers/{time_combo}_mean_classification_summary.csv",
+                  "w", newline="") as f:
             writer_obj = writer(f)
+            writer_obj.writerow([f"{time_combo}_mean_classification_summary"])
             writer_obj.writerow([""] + FLARE_PROPERTIES)
             for coincidence in COINCIDENCES:
                 writer_obj.writerow(
@@ -292,27 +349,60 @@ def generate_report_summary():
                 [str(float(coin) - float(noncoin)) for coin, noncoin in
                  zip(mx_recall["coincident"], mx_recall["noncoincident"])])
             writer_obj.writerow([""])
+
             for coincidence in COINCIDENCES:
                 writer_obj.writerow(
-                    [f"True Skill Score ({coincidence.capitalize()})"] + tss[
+                    [f"TSS ({coincidence.capitalize()})"] + tss[
                         coincidence])
             writer_obj.writerow(
                 ["TSS Difference (Coincident - Noncoincident)"] + \
                 [str(float(coin) - float(noncoin)) for coin, noncoin in
                  zip(tss["coincident"], tss["noncoincident"])])
             writer_obj.writerow([""])
+
             for coincidence in COINCIDENCES:
                 writer_obj.writerow(
-                    [f"Odds Ratio Skill Score ({coincidence.capitalize()})"] + orss[
+                    [f"HSS1 ({coincidence.capitalize()})"] + hss1[
+                        coincidence])
+            writer_obj.writerow(
+                ["HSS1 Difference (Coincident - Noncoincident)"] + \
+                [str(float(coin) - float(noncoin)) for coin, noncoin in
+                 zip(hss1["coincident"], hss1["noncoincident"])])
+            writer_obj.writerow([""])
+
+            for coincidence in COINCIDENCES:
+                writer_obj.writerow(
+                    [f"HSS2 ({coincidence.capitalize()})"] + hss2[
+                        coincidence])
+            writer_obj.writerow(
+                ["HSS2 Difference (Coincident - Noncoincident)"] + \
+                [str(float(coin) - float(noncoin)) for coin, noncoin in
+                 zip(hss2["coincident"], hss2["noncoincident"])])
+            writer_obj.writerow([""])
+
+            for coincidence in COINCIDENCES:
+                writer_obj.writerow(
+                    [f"GS ({coincidence.capitalize()})"] + gs[
+                        coincidence])
+            writer_obj.writerow(
+                ["GS Difference (Coincident - Noncoincident)"] + \
+                [str(float(coin) - float(noncoin)) for coin, noncoin in
+                 zip(gs["coincident"], gs["noncoincident"])])
+            writer_obj.writerow([""])
+
+            for coincidence in COINCIDENCES:
+                writer_obj.writerow(
+                    [f"ORSS ({coincidence.capitalize()})"] + orss[
                         coincidence])
             writer_obj.writerow(
                 ["ORSS Difference (Coincident - Noncoincident)"] + \
                 [str(float(coin) - float(noncoin)) for coin, noncoin in
                  zip(orss["coincident"], orss["noncoincident"])])
             writer_obj.writerow([""])
+
             for coincidence in COINCIDENCES:
                 writer_obj.writerow([
-                                        f"Symmetric Extremal Dependence Index ({coincidence.capitalize()})"] +
+                                        f"SEDI ({coincidence.capitalize()})"] +
                                     sedi[coincidence])
             writer_obj.writerow(
                 ["SEDI Difference (Coincident - Noncoincident)"] + \
@@ -321,5 +411,5 @@ def generate_report_summary():
 
 
 if __name__ == "__main__":
-    # main()
+    main()
     generate_report_summary()
