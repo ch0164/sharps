@@ -176,11 +176,11 @@ def main():
             info_df[time_string].apply(parse_tai_string)
 
     for time_combo in TIME_COMBINATIONS:
-        mean_df = pd.read_csv(
-            f"{stats_directory}{'all'}/{time_combo}/{time_combo}_mean_{'all'}.csv")
-        std_df = pd.read_csv(
-            f"{stats_directory}{'all'}/{time_combo}/{time_combo}_std_{'all'}.csv")
         for is_coincident in COINCIDENCES:
+            mean_df = pd.read_csv(
+                f"{stats_directory}{is_coincident}/{time_combo}/{time_combo}_mean_{is_coincident}.csv")
+            std_df = pd.read_csv(
+                f"{stats_directory}{is_coincident}/{time_combo}/{time_combo}_std_{is_coincident}.csv")
             temp_df = info_df
             new_df = pd.DataFrame()
             if is_coincident == "coincident":

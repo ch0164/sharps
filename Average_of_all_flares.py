@@ -143,11 +143,11 @@ def main():
     info_df["xray_class"] = \
         info_df["xray_class"].apply(classify_flare)
 
-    # labels = ["X", "M", "C", "B"]
-    # colors = ["red", "orange", "green", "blue"]
+    labels = ["BC", "MX"]
+    colors = ["blue", "red"]
 
-    labels = ["B", "C", "M", "X"]
-    colors = ["blue", "green", "orange", "red"]
+    # labels = ["B", "C", "M", "X"]
+    # colors = ["blue", "green", "orange", "red"]
 
     # labels = ["X"]
     # colors = ["red"]
@@ -227,7 +227,10 @@ def main():
 
         for label in labels:
             temp_df = info_df
-            info_df = info_df.loc[info_df["xray_class"] == label]
+            info_df = pd.concat([
+                                    info_df.loc[info_df["xray_class"] == label[0]],
+                                    info_df.loc[info_df["xray_class"] == label[1]]
+            ])
             info_df.reset_index(inplace=True)
             for flare_index, row in info_df.iterrows():
                 print(label, flare_index, "/", info_df.shape[0])
@@ -298,8 +301,8 @@ def main():
         min_max_df.to_csv(min_max_csv)
 
     for is_coincident in ["all", "coincident", "noncoincident"]:
-        plot_idealized_time_series(is_coincident)
-        # generate_idealized_time_series(is_coincident, info_df)
+        generate_idealized_time_series(is_coincident, info_df)
+        # plot_idealized_time_series(is_coincident)
 
 
 if __name__ == "__main__":
