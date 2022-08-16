@@ -91,6 +91,16 @@ def floor_minute(time, cadence=12):
     return time - datetime.timedelta(minutes=time.minute % cadence)
 
 
+def class_to_num(flare_class):
+    if flare_class == "B":
+        return 0
+    elif flare_class == "C":
+        return 1
+    elif flare_class == "M":
+        return 2
+    else:
+        return 3
+
 to_drop = [
     'MEANGBZ',
     'MEANGBH',
@@ -105,22 +115,12 @@ to_drop = [
 ]
 
 def main():
-    info_df = pd.read_csv("all_flares.txt")
+    info_df = pd.read_csv("classifiers/2013_2014_flare_info.csv")
     drop = list(set(info_df.columns) - {"nar", "time_start", "time_end", "xray_class"})
     info_df.drop(drop, axis=1, inplace=True)
     info_df.dropna(inplace=True)
     info_df.reset_index(inplace=True)
     info_df.drop("index", axis=1, inplace=True)
-
-    def class_to_num(flare_class):
-        if flare_class == "B":
-            return 0
-        elif flare_class == "C":
-            return 1
-        elif flare_class == "M":
-            return 2
-        else:
-            return 3
 
     info_df["xray_class"] = info_df["xray_class"].apply(classify_flare)
     info_df["class_num"] = info_df["xray_class"].apply(class_to_num)
@@ -130,35 +130,128 @@ def main():
     print(info_df)
     # exit(1)
 
+    coincidences = ["all", "coincident", "noncoincident"]
     labels = ["B", "C", "M", "X"]
+    colors = ["blue", "green", "orange", "red"]
+    for coincidence in coincidences:
+        if coincidence == "coincident":
+            flare_df = info_df.loc[info_df["is_coincident"] == True]
+        elif coincidence == "noncoincident":
+            flare_df = info_df.loc[info_df["is_coincident"] == False]
+        for label, color in zip(labels, colors):
+            flare_df = info_df.loc[info_df["xray_class"] == label]
 
-    values, counts = np.unique(info_df["nar"], return_counts=True)
-    value_counts = [(int(value), count) for value, count in zip(values, counts)
-                    if not pd.isna(value)]
-    value_counts = sorted(value_counts, key=lambda value_count: value_count[1],
-                          reverse=True)
-    # values = [value for value, _ in value_counts]
-    # counts = [count for _, count in value_counts]
-    # plt.plot(values, counts)
-    # plt.xlabel("AR #")
-    # plt.ylabel("# of Flares")
+            values, counts = np.unique(flare_df["nar"], return_counts=True)
+            value_counts = [(int(value), count) for value, count in
+                            zip(values, counts)
+                            if not pd.isna(value)]
+            value_counts = sorted(value_counts,
+                                  key=lambda value_count: value_count[1],
+                                  reverse=True)
+            values = [value for value, _ in value_counts]
+            counts = [count for _, count in value_counts]
+            plt.plot(values, counts, color=color, label=label)
+        plt.xlabel("AR #")
+        plt.ylabel("# of Flares")
+
+        plt.tight_layout()
+        plt.show()
+
+
+
+    # for value, count in value_counts:
+    #     print(value, count)
+    #
+    # nar = 12297
+    # for label in labels:
+    #     df = info_df.loc[info_df["xray_class"] == label]
+    #     df = df.loc[df["nar"] == nar]
+    #     plt.scatter(df["time_start"], df["class_num"], label=label)
+    # plt.legend(loc="best")
+    # plt.xticks(rotation="vertical")
+    # plt.yticks(color="w")
+    # plt.title(f"Flare Coincidence for AR {nar} (140 Flares)")
     # plt.tight_layout()
     # plt.show()
-    for value, count in value_counts:
-        print(value, count)
 
-    nar = 12297
-    for label in labels:
-        df = info_df.loc[info_df["xray_class"] == label]
-        df = df.loc[df["nar"] == nar]
-        plt.scatter(df["time_start"], df["class_num"], label=label)
-    plt.legend(loc="best")
-    plt.xticks(rotation="vertical")
-    plt.yticks(color="w")
-    plt.title(f"Flare Coincidence for AR {nar} (140 Flares)")
+
+def generate_time_plot():
+    new_index = [
+        'Jan 2013',
+        'Feb 2013',
+        'Mar 2013',
+        'Apr 2013',
+        'May 2013',
+        'Jun 2013',
+        'Jul 2013',
+        'Aug 2013',
+        'Sep 2013',
+        'Oct 2013',
+        'Nov 2013',
+        'Dec 2013',
+        'Jan 2014',
+        'Feb 2014',
+        'Mar 2014',
+        'Apr 2014',
+        'May 2014',
+        'Jun 2014',
+        'Jul 2014',
+        'Aug 2014',
+        'Sep 2014',
+        'Oct 2014',
+        'Nov 2014',
+        'Dec 2014'
+    ]
+
+    info_df = pd.read_csv("classifiers/2013_2014_flare_info.csv")
+    info_df["xray_class"] = info_df["xray_class"].apply(classify_flare)
+    info_df["class_num"] = info_df["xray_class"].apply(class_to_num)
+    for time_string in ["time_start", "time_end"]:
+        info_df[time_string] = \
+            info_df[time_string].apply(parse_tai_string)
+
+    colors = ["blue", "green", "orange", "red"]
+    flare_labels = ["B", "C", "M", "X"]
+    flare_df = pd.DataFrame(columns=flare_labels)
+
+    plt.figure(figsize=(25, 25))
+
+    for year in [2013, 2014]:
+        for month in range(1, 12 + 1):
+            flares = info_df.loc[
+                (info_df['time_start'].dt.year == year) &
+                (info_df['time_start'].dt.month == month)]
+            b_df = flares.loc[flares["xray_class"] == "B"].shape[0]
+            c_df = flares.loc[flares["xray_class"] == "C"].shape[0]
+            m_df = flares.loc[flares["xray_class"] == "M"].shape[0]
+            x_df = flares.loc[flares["xray_class"] == "X"].shape[0]
+            flare_counts = [b_df, c_df, m_df, x_df]
+            print(flare_counts)
+            flare_df.loc[len(flare_df)] = flare_counts
+
+    flare_df.index = new_index
+    print(flare_df)
+    flare_df.plot(kind="bar", stacked=True, color=colors)
+    plt.title("Flare Counts for Solar Cycle 24, 2013-2014")
+    plt.xticks(rotation="vertical", ha="center")
+    plt.ylabel("# of Flares")
     plt.tight_layout()
     plt.show()
 
 
+
+    for flare_index, row in info_df.iterrows():
+        print(flare_index, "/", info_df.shape[0])
+        start_time = row["time_start"]
+        flare_class = row["xray_class"]
+
+
+
+
+
+
+
+
 if __name__ == "__main__":
-    main()
+    # main()
+    generate_time_plot()

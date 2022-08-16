@@ -77,7 +77,9 @@ def floor_minute(time, cadence=12):
 
 
 def main():
-    labels = ["B", "C", "M", "X"]
+    # labels = ["B", "C", "M", "X"]
+    # labels = ["BC", "MX"]
+    labels = ["BCMX"]
     n = len(FLARE_PROPERTIES)
     idealized_flares2 = "idealized_flares2"
 
@@ -86,7 +88,8 @@ def main():
         min_max_df = pd.read_csv(f"idealized_flares2/{is_coincident}/24_average_flares_min_max_{is_coincident}.csv")
         def generate_binned_csv():
             for label in labels:
-                df = pd.read_csv(f"{idealized_flares2}/{is_coincident}/{label}_idealized_flare_{is_coincident}.csv")
+                # df = pd.read_csv(f"{idealized_flares2}/{is_coincident}/{label}_idealized_flare_{is_coincident}.csv")
+                df = pd.read_csv(f"{idealized_flares2}/{is_coincident}/{label}_idealized_flare.csv")
                 for flare_property in FLARE_PROPERTIES:
                     mn, mx = tuple(min_max_df[flare_property])
                     df[flare_property] = (df[flare_property] - mn) / (mx - mn)
