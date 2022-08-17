@@ -85,7 +85,7 @@ def flare_to_num(flare_label):
         return 1
 
 
-def classify(mean_df, std_df, param, x):
+def classify(mean_df, std_df, median_df, param, x):
     m_mean = mean_df[param][2]
     m_std = std_df[param][2]
     c_mean = mean_df[param][1]
@@ -99,6 +99,14 @@ def classify(mean_df, std_df, param, x):
         return "ABC"
     else:
         return "MX"
+
+    # c_median = median_df[param][1]
+    # m_median = median_df[param][2]
+    # new_median = (c_median + m_median) / 2
+    # if x < new_median:
+    #     return "ABC"
+    # else:
+    #     return "MX"
 
 
 def ravel_conf_matrix(conf_matrix):
@@ -157,7 +165,16 @@ def main():
     flare_property = "R_VALUE"
 
     abc_properties_df = pd.read_csv("Data_ABC_with_Korsos_parms.csv")
+    abc_properties_df = abc_properties_df.loc[
+        abc_properties_df["d_l_f"].values *
+        abc_properties_df["g_s"].values *
+        abc_properties_df["slf"].values != 0]
     mx_properties_df = pd.read_csv("Data_MX_with_Korsos_parms.csv")
+    mx_properties_df = mx_properties_df.loc[
+        mx_properties_df["d_l_f"].values *
+        mx_properties_df["g_s"].values *
+        mx_properties_df["slf"].values != 0]
+
 
     # Convert T_REC string to datetime objects.
     abc_properties_df["T_REC"] = \
@@ -179,6 +196,8 @@ def main():
         for is_coincident in COINCIDENCES:
             mean_df = pd.read_csv(
                 f"{stats_directory}{is_coincident}/{time_combo}/{time_combo}_mean_{is_coincident}.csv")
+            median_df = pd.read_csv(
+                f"{stats_directory}{is_coincident}/{time_combo}/{time_combo}_median_{is_coincident}.csv")
             std_df = pd.read_csv(
                 f"{stats_directory}{is_coincident}/{time_combo}/{time_combo}_std_{is_coincident}.csv")
             temp_df = info_df
@@ -220,7 +239,8 @@ def main():
                     # Find corresponding starting index in properties dataframe, if it exists.
                     start_index = end_index
                     for i in range(time_range * 5 - 1):
-                        if end_index - i >= 0:
+                        if end_index - i in properties_df.index and \
+                            end_index - i >= 0:
                             if properties_df["NOAA_AR"][
                                 end_index - i] == noaa_ar:
                                 start_index = end_index - i
@@ -235,7 +255,7 @@ def main():
                     df_needed = local_properties_df
 
                     mean = df_needed[flare_property].mean()
-                    pred_class = classify(mean_df, std_df, flare_property, mean)
+                    pred_class = classify(mean_df, std_df, median_df, flare_property, mean)
                     if flare_class in "ABC":
                         y = "ABC"
                     else:
@@ -264,7 +284,7 @@ def main():
                                            target_names=["ABC", "MX"],
                                            output_dict=True)
                 df = pandas.DataFrame(cr).T
-                filename = f"{root_directory}{is_coincident}/{time_combo}/classification_reports/{time_combo}_{flare_property}_classification_report_{is_coincident}.csv"
+                filename = f"{root_directory}{is_coincident}/{time_combo}/classification_reports/{time_combo}_{flare_property}_mean_classification_report_{is_coincident}.csv"
                 df.to_csv(filename)
                 with open(filename, "a", newline="") as f:
                     writer_obj = writer(f)
