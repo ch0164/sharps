@@ -212,7 +212,8 @@ def generate_time_plot():
 
     colors = ["blue", "green", "orange", "red"]
     flare_labels = ["B", "C", "M", "X"]
-    flare_df = pd.DataFrame(columns=flare_labels)
+    coin_flare_df = pd.DataFrame(columns=flare_labels)
+    noncoin_flare_df = pd.DataFrame(columns=flare_labels)
 
     plt.figure(figsize=(25, 25))
 
@@ -221,35 +222,29 @@ def generate_time_plot():
             flares = info_df.loc[
                 (info_df['time_start'].dt.year == year) &
                 (info_df['time_start'].dt.month == month)]
-            b_df = flares.loc[flares["xray_class"] == "B"].shape[0]
-            c_df = flares.loc[flares["xray_class"] == "C"].shape[0]
-            m_df = flares.loc[flares["xray_class"] == "M"].shape[0]
-            x_df = flares.loc[flares["xray_class"] == "X"].shape[0]
-            flare_counts = [b_df, c_df, m_df, x_df]
-            print(flare_counts)
-            flare_df.loc[len(flare_df)] = flare_counts
+            # coin_b = flares.loc[(flares["xray_class"] == "B") & (flares["is_coincident"] == True)].shape[0]
+            # coin_c = flares.loc[(flares["xray_class"] == "C") & (flares["is_coincident"] == True)].shape[0]
+            # coin_m = flares.loc[(flares["xray_class"] == "M") & (flares["is_coincident"] == True)].shape[0]
+            # coin_x = flares.loc[(flares["xray_class"] == "X") & (flares["is_coincident"] == True)].shape[0]
+            # coin_flare_counts = [coin_b, coin_c, coin_m, coin_x]
+            # coin_flare_df.loc[len(coin_flare_df)] = coin_flare_counts
 
-    flare_df.index = new_index
-    print(flare_df)
-    flare_df.plot(kind="bar", stacked=True, color=colors)
-    plt.title("Flare Counts for Solar Cycle 24, 2013-2014")
+            noncoin_b = flares.loc[(flares["xray_class"] == "B") & (flares["is_coincident"] == False)].shape[0]
+            noncoin_c = flares.loc[(flares["xray_class"] == "C") & (flares["is_coincident"] == False)].shape[0]
+            noncoin_m = flares.loc[(flares["xray_class"] == "M") & (flares["is_coincident"] == False)].shape[0]
+            noncoin_x = flares.loc[(flares["xray_class"] == "X") & (flares["is_coincident"] == False)].shape[0]
+            noncoin_flare_counts = [noncoin_b, noncoin_c, noncoin_m, noncoin_x]
+            noncoin_flare_df.loc[len(noncoin_flare_df)] = noncoin_flare_counts
+
+    # coin_flare_df.index = new_index
+    noncoin_flare_df.index = new_index
+    # coin_flare_df.plot(kind="bar", stacked=True, color=colors)
+    noncoin_flare_df.plot(kind="bar", stacked=True, color=colors)
+    plt.title("Non-coincidental Flare Counts for Solar Cycle 24, 2013-2014")
     plt.xticks(rotation="vertical", ha="center")
     plt.ylabel("# of Flares")
     plt.tight_layout()
     plt.show()
-
-
-
-    for flare_index, row in info_df.iterrows():
-        print(flare_index, "/", info_df.shape[0])
-        start_time = row["time_start"]
-        flare_class = row["xray_class"]
-
-
-
-
-
-
 
 
 if __name__ == "__main__":
