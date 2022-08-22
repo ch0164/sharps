@@ -1,0 +1,28 @@
+Flare Counts
+--------------------------------------------------
+B: 126
+C: 126
+M: 63
+X: 6
+
+Binary Classification (B vs. Not-B Flares)
+--------------------------------------------------
+True Positives: 121
+True Negatives: 76
+False Positives: 119
+False Negatives: 5
+
+False Positives Breakdown
+--------------------------------------------------
+C: 85
+M: 33
+X: 1
+
+Classification Metrics
+--------------------------------------------------
+Accuracy: 0.61
+Recall/sensitivity: 0.96
+Specificity: 0.39
+Precision: 0.39
+f_1 Score: 0.55
+TSS: 0.57
