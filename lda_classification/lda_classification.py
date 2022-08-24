@@ -370,21 +370,136 @@ def spherical_classifier(df, coincidence):
         f.write("Classification Metrics\n")
         f.write('-' * 50 + "\n")
         f.write(f'Accuracy: {round(conf_accuracy, 2)}\n')
-        f.write(f'Recall/sensitivity: {round(conf_sensitivity, 2)}\n')
-        f.write(f'Specificity: {round(conf_specificity, 2)}\n')
+        f.write(f'B Recall/Sensitivity: {round(conf_sensitivity, 2)}\n')
+        f.write(f'Not-B Recall/Specificity: {round(conf_specificity, 2)}\n')
         f.write(f'Precision: {round(conf_precision, 2)}\n')
         f.write(f'f_1 Score: {round(conf_f1, 2)}\n')
         f.write(f"TSS: {round(conf_tss, 2)}\n")
 
-    flare_conf = [[tp, fp], [fn, tn]]
+    tp, fn, fp, tn = 0, 0, 0, 0
+    false_positives = {label: 0 for label in ["X"]}
+    for index in inside:
+        row = lda_df.iloc[index]
+        flare_class = row["xray_class"]
+        if flare_class == "B":
+            tp += 1
+        elif flare_class == "X":
+            fp += 1
+            false_positives[flare_class] += 1
 
-    sns.heatmap(flare_conf, annot=True, cmap="Blues", cbar=False,
-                fmt="d", square=True,
-                xticklabels=["B", "CMX"],
-                yticklabels=["B", "CMX"])
-    plt.title(f"10-22h Mean LDA B-Class Flare Confusion Matrix, {coincidence.capitalize()} Flares")
-    plt.savefig(f"{coincidence}/confusion_matrix_{coincidence}.jpeg")
-    plt.show()
+    for index in outside:
+        row = lda_df.iloc[index]
+        flare_class = row["xray_class"]
+        if flare_class == "B":
+            fn += 1
+        elif flare_class == "X":
+            tn += 1
+
+    with open(f"{coincidence}/x_spherical_classification_results.txt", "w", newline="\n") as f:
+        f.write("Flare Counts\n")
+        f.write('-' * 50 + "\n")
+        for label, count in zip(["B", "X"], [b, x]):
+            f.write(f"{label}: {count}\n")
+        f.write("\n")
+
+        f.write("Binary Classification (B vs. X Flares)\n")
+        f.write('-' * 50 + "\n")
+        f.write(f'True Positives: {tp}\n')
+        f.write(f'True Negatives: {tn}\n')
+        f.write(f'False Positives: {fp}\n')
+        f.write(f'False Negatives: {fn}\n')
+        f.write("\n")
+
+        f.write("False Positives Breakdown\n")
+        f.write('-' * 50 + "\n")
+        f.write(f'X: {false_positives["X"]}\n')
+        f.write("\n")
+
+        # calculate accuracy
+        conf_accuracy = (float(tp + tn) / float(tp + tn + fp + fn))
+
+        # calculate the sensitivity
+        conf_sensitivity = (tp / float(tp + fn))
+        # calculate the specificity
+        conf_specificity = (tn / float(tn + fp))
+
+        # calculate precision
+        conf_precision = (tn / float(tn + fp))
+        # calculate f_1 score
+        conf_f1 = 2 * ((conf_precision * conf_sensitivity) / (conf_precision + conf_sensitivity))
+        conf_tss = conf_sensitivity - conf_specificity
+
+        f.write("Classification Metrics\n")
+        f.write('-' * 50 + "\n")
+        f.write(f'Accuracy: {round(conf_accuracy, 2)}\n')
+        f.write(f'B Recall/Sensitivity: {round(conf_sensitivity, 2)}\n')
+        f.write(f'X Recall/Specificity: {round(conf_specificity, 2)}\n')
+        f.write(f'Precision: {round(conf_precision, 2)}\n')
+        f.write(f'f_1 Score: {round(conf_f1, 2)}\n')
+        f.write(f"TSS: {round(conf_tss, 2)}\n")
+
+    tp, fn, fp, tn = 0, 0, 0, 0
+    false_positives = {label: 0 for label in ["M", "X"]}
+    for index in inside:
+        row = lda_df.iloc[index]
+        flare_class = row["xray_class"]
+        if flare_class == "B":
+            tp += 1
+        elif flare_class == "M" or flare_class == "X":
+            fp += 1
+            false_positives[flare_class] += 1
+
+    for index in outside:
+        row = lda_df.iloc[index]
+        flare_class = row["xray_class"]
+        if flare_class == "B":
+            fn += 1
+        elif flare_class == "M" or flare_class == "X":
+            tn += 1
+
+    with open(f"{coincidence}/mx_spherical_classification_results.txt", "w", newline="\n") as f:
+        f.write("Flare Counts\n")
+        f.write('-' * 50 + "\n")
+        for label, count in zip(FLARE_LABELS, [b, c, m, x]):
+            f.write(f"{label}: {count}\n")
+        f.write("\n")
+
+        f.write("Binary Classification (B vs. MX Flares)\n")
+        f.write('-' * 50 + "\n")
+        f.write(f'True Positives: {tp}\n')
+        f.write(f'True Negatives: {tn}\n')
+        f.write(f'False Positives: {fp}\n')
+        f.write(f'False Negatives: {fn}\n')
+        f.write("\n")
+
+        f.write("False Positives Breakdown\n")
+        f.write('-' * 50 + "\n")
+        f.write(f'M: {false_positives["M"]}\n')
+        f.write(f'X: {false_positives["X"]}\n')
+        f.write("\n")
+
+        # calculate accuracy
+        conf_accuracy = (float(tp + tn) / float(tp + tn + fp + fn))
+
+        # calculate the sensitivity
+        conf_sensitivity = (tp / float(tp + fn))
+        # calculate the specificity
+        conf_specificity = (tn / float(tn + fp))
+
+        # calculate precision
+        conf_precision = (tn / float(tn + fp))
+        # calculate f_1 score
+        conf_f1 = 2 * ((conf_precision * conf_sensitivity) / (conf_precision + conf_sensitivity))
+        conf_tss = conf_sensitivity - conf_specificity
+
+        f.write("Classification Metrics\n")
+        f.write('-' * 50 + "\n")
+        f.write(f'Accuracy: {round(conf_accuracy, 2)}\n')
+        f.write(f'B Recall/Sensitivity: {round(conf_sensitivity, 2)}\n')
+        f.write(f'MX Recall/Specificity: {round(conf_specificity, 2)}\n')
+        f.write(f'Precision: {round(conf_precision, 2)}\n')
+        f.write(f'f_1 Score: {round(conf_f1, 2)}\n')
+        f.write(f"TSS: {round(conf_tss, 2)}\n")
 
 
 

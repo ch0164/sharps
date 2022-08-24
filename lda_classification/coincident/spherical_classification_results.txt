@@ -21,8 +21,8 @@ X: 2
 Classification Metrics
 --------------------------------------------------
 Accuracy: 0.76
-Recall/sensitivity: 0.8
-Specificity: 0.73
+B Recall/Sensitivity: 0.8
+Not-B Recall/Specificity: 0.73
 Precision: 0.73
 f_1 Score: 0.77
 TSS: 0.07
