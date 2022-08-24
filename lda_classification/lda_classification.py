@@ -268,10 +268,11 @@ def plot_scatter_3d(df, coincidence):
         Z = radius * np.cos(v) + z
         return X, Y, Z
 
-    x, y, z, r = -1.25, 0, 0, 2.5
+    x, y, z, r = -1.7, 0, 0, 1.75
+    if coincidence == "noncoincident":
+        x, y, z, r = -1.5, 0, 0, 2.0
     x_pns_surface, y_pns_surface, z_pns_surface = ms(x, y, z, r)
-    fig2 = go.Figure(go.Surface(x=x_pns_surface, y=y_pns_surface, z=z_pns_surface, opacity=0.3))
-    fig2.update_traces(showscale=False)
+    fig2 = go.Figure(go.Surface(x=x_pns_surface, y=y_pns_surface, z=z_pns_surface, opacity=0.3, showscale=False))
 
     fig3 = go.Figure(data=fig.data + fig2.data)
     fig3.update_layout(title_text=f"LDA 10-22h Mean B-Class Flare Spherical Classifier, {coincidence.capitalize()} Flares", title_x=0.5)
@@ -293,7 +294,9 @@ def spherical_classifier(df, coincidence):
     lda_df = pd.DataFrame(components, columns=ld_labels)
     lda_df["xray_class"] = target
 
-    cx, cy, cz, r = -1.25, 0, 0, 2.5
+    cx, cy, cz, r = -1.7, 0, 0, 1.75
+    if coincidence == "noncoincident":
+        cx, cy, cz, r = -1.5, 0, 0, 2.0
     threshold = r**2
     inside, outside = [], []
     for index, row in lda_df.iterrows():
