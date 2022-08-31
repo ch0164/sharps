@@ -249,14 +249,17 @@ def plot_scatter_3d(df, coincidence):
     pc_labels = [f"PC {i + 1}" for i in range(3)]
     labeled_components = pd.DataFrame(components, columns=[0, 1, 2])
     labeled_components["xray_class"] = target
-    b_data = labeled_components.loc[labeled_components["xray_class"] == "B"].drop("xray_class", axis=1)
-    b_data.reset_index(inplace=True)
-    b_data.drop("index", axis=1, inplace=True)
-    print(b_data)
+    bmx_data = labeled_components.loc[(labeled_components["xray_class"] == "B")|
+                                     (labeled_components["xray_class"] == "M") |
+                                     (labeled_components["xray_class"] == "X")]\
+        .drop("xray_class", axis=1)
+    bmx_data.reset_index(inplace=True)
+    bmx_data.drop("index", axis=1, inplace=True)
+    print(bmx_data)
 
     tmp_A = []
     tmp_b = []
-    for index, row in b_data.iterrows():
+    for index, row in bmx_data.iterrows():
         X, Y, Z = tuple(row)
         tmp_A.append([X, Y, 1])
         tmp_b.append(Z)
@@ -280,8 +283,8 @@ def plot_scatter_3d(df, coincidence):
         color_discrete_map={label: color for label, color in zip(FLARE_LABELS, FLARE_COLORS)},
     )
 
-    xi = np.linspace(b_data[0].min(), b_data[0].max(), num=1000)
-    yi = np.linspace(b_data[1].min(), b_data[1].max(), num=1000)
+    xi = np.linspace(bmx_data[0].min(), bmx_data[0].max(), num=1000)
+    yi = np.linspace(bmx_data[1].min(), bmx_data[1].max(), num=1000)
     X, Y = np.meshgrid(xi, yi)
     Z = np.zeros(X.shape)
     for r in range(X.shape[0]):
@@ -291,7 +294,7 @@ def plot_scatter_3d(df, coincidence):
 
     surf = go.Figure(go.Surface(x=X, y=Y, z=Z, opacity=0.3, showscale=False))
     fig3 = go.Figure(data=fig.data + surf.data)
-    fig3.update_layout(title_text=f"PCA 10-22h Mean B-Class Flare Best-Fit Plane Classifier, {coincidence.capitalize()} Flares"
+    fig3.update_layout(title_text=f"PCA 10-22h Mean B-Class Flare Plane Classifier, {coincidence.capitalize()} Flares"
                                   f" Total Variance: {total_var}", title_x=0.5)
 
     fig3.write_html(f"{coincidence}/pca_3d.html")
@@ -347,7 +350,7 @@ def plane_classifier(df, coincidence, fit):
         else:
             tn += 1
 
-    with open(f"{coincidence}/best_fit_plane_classification_results.txt", "w", newline="\n") as f:
+    with open(f"{coincidence}/plane_classification_results.txt", "w", newline="\n") as f:
         f.write("Flare Counts\n")
         f.write('-' * 50 + "\n")
         for label, count in zip(FLARE_LABELS, [b, c, m, x]):
@@ -379,9 +382,11 @@ def plane_classifier(df, coincidence, fit):
 
         # calculate precision
         conf_precision = (tn / float(tn + fp))
+
+        conf_false_alarm_rate = (fp / float(fp + tn))
         # calculate f_1 score
         conf_f1 = 2 * ((conf_precision * conf_sensitivity) / (conf_precision + conf_sensitivity))
-        conf_tss = conf_sensitivity - conf_specificity
+        conf_tss = conf_sensitivity - conf_false_alarm_rate
 
         f.write("Classification Metrics\n")
         f.write('-' * 50 + "\n")
@@ -389,6 +394,7 @@ def plane_classifier(df, coincidence, fit):
         f.write(f'B Recall/Sensitivity: {round(conf_sensitivity, 2)}\n')
         f.write(f'Not-B Recall/Specificity: {round(conf_specificity, 2)}\n')
         f.write(f'Precision: {round(conf_precision, 2)}\n')
+        f.write(f'False alarm ratio: {round(conf_false_alarm_rate, 2)}\n')
         f.write(f'f_1 Score: {round(conf_f1, 2)}\n')
         f.write(f"TSS: {round(conf_tss, 2)}\n")
 
@@ -411,7 +417,7 @@ def plane_classifier(df, coincidence, fit):
         elif flare_class == "X":
             tn += 1
 
-    with open(f"{coincidence}/x_best_fit_plane_classification_results.txt", "w", newline="\n") as f:
+    with open(f"{coincidence}/x_plane_classification_results.txt", "w", newline="\n") as f:
         f.write("Flare Counts\n")
         f.write('-' * 50 + "\n")
         for label, count in zip(["B", "X"], [b, x]):
@@ -441,16 +447,20 @@ def plane_classifier(df, coincidence, fit):
 
         # calculate precision
         conf_precision = (tn / float(tn + fp))
+
+        conf_false_alarm_rate = (fp / float(fp + tn))
+
         # calculate f_1 score
         conf_f1 = 2 * ((conf_precision * conf_sensitivity) / (conf_precision + conf_sensitivity))
-        conf_tss = conf_sensitivity - conf_specificity
+        conf_tss = conf_sensitivity - conf_false_alarm_rate
 
         f.write("Classification Metrics\n")
         f.write('-' * 50 + "\n")
         f.write(f'Accuracy: {round(conf_accuracy, 2)}\n')
         f.write(f'B Recall/Sensitivity: {round(conf_sensitivity, 2)}\n')
-        f.write(f'X Recall/Specificity: {round(conf_specificity, 2)}\n')
+        f.write(f'Not-B Recall/Specificity: {round(conf_specificity, 2)}\n')
         f.write(f'Precision: {round(conf_precision, 2)}\n')
+        f.write(f'False alarm ratio: {round(conf_false_alarm_rate, 2)}\n')
         f.write(f'f_1 Score: {round(conf_f1, 2)}\n')
         f.write(f"TSS: {round(conf_tss, 2)}\n")
 
@@ -473,7 +483,7 @@ def plane_classifier(df, coincidence, fit):
         elif flare_class in ["M", "X"]:
             tn += 1
 
-    with open(f"{coincidence}/mx_best_fit_plane_classification_results.txt", "w", newline="\n") as f:
+    with open(f"{coincidence}/mx_plane_classification_results.txt", "w", newline="\n") as f:
         f.write("Flare Counts\n")
         f.write('-' * 50 + "\n")
         for label, count in zip(FLARE_LABELS, [b, c, m, x]):
@@ -504,16 +514,20 @@ def plane_classifier(df, coincidence, fit):
 
         # calculate precision
         conf_precision = (tn / float(tn + fp))
+
+        conf_false_alarm_rate = (fp / float(fp + tn))
+
         # calculate f_1 score
         conf_f1 = 2 * ((conf_precision * conf_sensitivity) / (conf_precision + conf_sensitivity))
-        conf_tss = conf_sensitivity - conf_specificity
+        conf_tss = conf_sensitivity - conf_false_alarm_rate
 
         f.write("Classification Metrics\n")
         f.write('-' * 50 + "\n")
         f.write(f'Accuracy: {round(conf_accuracy, 2)}\n')
         f.write(f'B Recall/Sensitivity: {round(conf_sensitivity, 2)}\n')
-        f.write(f'MX Recall/Specificity: {round(conf_specificity, 2)}\n')
+        f.write(f'Not-B Recall/Specificity: {round(conf_specificity, 2)}\n')
         f.write(f'Precision: {round(conf_precision, 2)}\n')
+        f.write(f'False alarm ratio: {round(conf_false_alarm_rate, 2)}\n')
         f.write(f'f_1 Score: {round(conf_f1, 2)}\n')
         f.write(f"TSS: {round(conf_tss, 2)}\n")
 

@@ -246,16 +246,18 @@ def plot_scatter_3d(df, coincidence):
     lda = LinearDiscriminantAnalysis()
     components = lda.fit_transform(df, target)
 
-    ld_labels = [f"LD {i + 1}" for i in range(3)]
+    ld_labels = [f"LD{i + 1}" for i in range(3)]
+
+    lda_df = pd.DataFrame(components, columns=ld_labels)
+    lda_df["xray_class"] = target
 
     total_var = lda.explained_variance_ratio_.sum() * 100
     # print(len(lda.components_))
     print(lda.explained_variance_ratio_)
 
     fig = px.scatter_3d(
-        components, x=0, y=1, z=2, color=target, opacity=0.5,
+        lda_df, x="LD1", y="LD2", z="LD3", color=target, opacity=0.5,
         title=f'{coincidence.capitalize()}, 10-22h Mean',
-        labels=ld_labels,
         color_discrete_map={label: color for label, color in zip(FLARE_LABELS, FLARE_COLORS)},
     )
 
@@ -268,9 +270,18 @@ def plot_scatter_3d(df, coincidence):
         Z = radius * np.cos(v) + z
         return X, Y, Z
 
-    x, y, z, r = -1.7, 0, 0, 1.75
-    if coincidence == "noncoincident":
-        x, y, z, r = -1.5, 0, 0, 2.0
+    b_data = lda_df.loc[lda_df["xray_class"] == "B"]
+    b_data_count = b_data.shape[0]
+    # trim_count = int(0.05 * b_data_count)
+    # b_data = b_data[trim_count:-trim_count]
+
+    X = sorted(b_data["LD1"])
+    Y = sorted(b_data["LD2"])
+    Z = sorted(b_data["LD3"])
+    x, y, z = np.mean(X) / len(X), np.mean(Y) / len(Y), np.mean(Z) / len(Z)
+    r = np.std(X) * 2
+    x -= r
+
     x_pns_surface, y_pns_surface, z_pns_surface = ms(x, y, z, r)
     fig2 = go.Figure(go.Surface(x=x_pns_surface, y=y_pns_surface, z=z_pns_surface, opacity=0.3, showscale=False))
 
@@ -294,9 +305,17 @@ def spherical_classifier(df, coincidence):
     lda_df = pd.DataFrame(components, columns=ld_labels)
     lda_df["xray_class"] = target
 
-    cx, cy, cz, r = -1.7, 0, 0, 1.75
-    if coincidence == "noncoincident":
-        cx, cy, cz, r = -1.5, 0, 0, 2.0
+    b_data = lda_df.loc[lda_df["xray_class"] == "B"]
+    b_data_count = b_data.shape[0]
+    trim_count = int(0.05 * b_data_count)
+    b_data = b_data[trim_count:-trim_count]
+    X = sorted(b_data["LD1"])
+    Y = sorted(b_data["LD2"])
+    Z = sorted(b_data["LD3"])
+    cx, cy, cz = np.mean(X) / len(X), np.mean(Y) / len(Y), np.mean(Z) / len(Z)
+    r = np.std(X) * 2
+    cx -= r
+
     threshold = r**2
     inside, outside = [], []
     for index, row in lda_df.iterrows():
@@ -361,11 +380,13 @@ def spherical_classifier(df, coincidence):
         # calculate the specificity
         conf_specificity = (tn / float(tn + fp))
 
+        conf_false_alarm_rate = (fp / float(fp + tn))
+
         # calculate precision
         conf_precision = (tn / float(tn + fp))
         # calculate f_1 score
         conf_f1 = 2 * ((conf_precision * conf_sensitivity) / (conf_precision + conf_sensitivity))
-        conf_tss = conf_sensitivity - conf_specificity
+        conf_tss = conf_sensitivity - conf_false_alarm_rate
 
         f.write("Classification Metrics\n")
         f.write('-' * 50 + "\n")
@@ -373,6 +394,7 @@ def spherical_classifier(df, coincidence):
         f.write(f'B Recall/Sensitivity: {round(conf_sensitivity, 2)}\n')
         f.write(f'Not-B Recall/Specificity: {round(conf_specificity, 2)}\n')
         f.write(f'Precision: {round(conf_precision, 2)}\n')
+        f.write(f'False alarm ratio: {round(conf_false_alarm_rate, 2)}\n')
         f.write(f'f_1 Score: {round(conf_f1, 2)}\n')
         f.write(f"TSS: {round(conf_tss, 2)}\n")
 
@@ -423,11 +445,13 @@ def spherical_classifier(df, coincidence):
         # calculate the specificity
         conf_specificity = (tn / float(tn + fp))
 
+        conf_false_alarm_rate = (fp / float(fp + tn))
+
         # calculate precision
         conf_precision = (tn / float(tn + fp))
         # calculate f_1 score
         conf_f1 = 2 * ((conf_precision * conf_sensitivity) / (conf_precision + conf_sensitivity))
-        conf_tss = conf_sensitivity - conf_specificity
+        conf_tss = conf_sensitivity - conf_false_alarm_rate
 
         f.write("Classification Metrics\n")
         f.write('-' * 50 + "\n")
@@ -435,6 +459,7 @@ def spherical_classifier(df, coincidence):
         f.write(f'B Recall/Sensitivity: {round(conf_sensitivity, 2)}\n')
         f.write(f'X Recall/Specificity: {round(conf_specificity, 2)}\n')
         f.write(f'Precision: {round(conf_precision, 2)}\n')
+        f.write(f'False alarm ratio: {round(conf_false_alarm_rate, 2)}\n')
         f.write(f'f_1 Score: {round(conf_f1, 2)}\n')
         f.write(f"TSS: {round(conf_tss, 2)}\n")
 
@@ -486,11 +511,13 @@ def spherical_classifier(df, coincidence):
         # calculate the specificity
         conf_specificity = (tn / float(tn + fp))
 
+        conf_false_alarm_rate = (fp / float(fp + tn))
+
         # calculate precision
         conf_precision = (tn / float(tn + fp))
         # calculate f_1 score
         conf_f1 = 2 * ((conf_precision * conf_sensitivity) / (conf_precision + conf_sensitivity))
-        conf_tss = conf_sensitivity - conf_specificity
+        conf_tss = conf_sensitivity - conf_false_alarm_rate
 
         f.write("Classification Metrics\n")
         f.write('-' * 50 + "\n")
@@ -498,6 +525,7 @@ def spherical_classifier(df, coincidence):
         f.write(f'B Recall/Sensitivity: {round(conf_sensitivity, 2)}\n')
         f.write(f'MX Recall/Specificity: {round(conf_specificity, 2)}\n')
         f.write(f'Precision: {round(conf_precision, 2)}\n')
+        f.write(f'False alarm ratio: {round(conf_false_alarm_rate, 2)}\n')
         f.write(f'f_1 Score: {round(conf_f1, 2)}\n')
         f.write(f"TSS: {round(conf_tss, 2)}\n")
 
