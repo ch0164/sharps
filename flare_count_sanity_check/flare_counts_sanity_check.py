@@ -101,11 +101,14 @@ def main():
     new_info_df = pd.read_csv(f"../all_flare_info_2.csv")
     old_info_df = pd.concat([pd.read_csv("../ABC_list.txt"),
                              pd.read_csv("../MX_list.txt")])
+    old_info_df["xray_class"] = \
+        old_info_df["xray_class"].apply(classify_flare)
     for time_string in ["time_start", "time_peak", "time_end"]:
         new_info_df[time_string] = \
             new_info_df[time_string].apply(parse_tai_string)
         old_info_df[time_string] = \
             old_info_df[time_string].apply(parse_tai_string)
+
 
     for info_df, label in zip([new_info_df, old_info_df], ["new", "old"]):
         cols = info_df.columns
@@ -132,10 +135,12 @@ def main():
                     missing_time.loc[len(missing_time)] = row
                     fail = True
                     break
-            print(missing_time)
 
             if not fail:
-                all_good.loc[len(all_good)] = row
+                end_series = properties_df.loc[
+                    properties_df["T_REC"] == timestamp]
+                if not end_series.loc[end_series['NOAA_AR'] == noaa_ar].empty:
+                    all_good.loc[len(all_good)] = row
 
         for df, df_label in zip([all_good, missing_time], ["good", "missing_time"]):
             b = df.loc[df["xray_class"] == "B"].shape[0]
@@ -143,7 +148,7 @@ def main():
             m = df.loc[df["xray_class"] == "M"].shape[0]
             x = df.loc[df["xray_class"] == "X"].shape[0]
 
-            with open(f"{df_label}_flares.txt", "w", newline="\n") as f:
+            with open(f"{label}_{df_label}_flares.txt", "w", newline="\n") as f:
                 f.write("Flare Counts\n")
                 f.write('-' * 50 + "\n")
                 f.write(f"B: {b}\n")
