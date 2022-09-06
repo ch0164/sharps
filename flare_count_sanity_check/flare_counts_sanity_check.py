@@ -76,13 +76,13 @@ def flare_to_num(flare_label):
         return 1
 
 
-def time_range_list(time_range, start_time):
-    time_step_range = range(time_range * 5 + 1)
+def time_range_list(time_interval, start_time):
+    time_step_range = range(time_interval * 5 + 1)
     times = [(start_time + datetime.timedelta(0, 12 * 60 * i)) for i in time_step_range]
-    return times
+    return times, time_step_range
 
 
-time_range = 12
+time_interval = 12
 abc_properties_df = pd.read_csv("../Data_ABC_with_Korsos_parms.csv")
 mx_properties_df = pd.read_csv("../Data_MX_with_Korsos_parms.csv")
 
@@ -109,6 +109,12 @@ def main():
         old_info_df[time_string] = \
             old_info_df[time_string].apply(parse_tai_string)
 
+    missing = {
+        "B": {i: 0 for i in range(0, 60 + 1)},
+        "C": {i: 0 for i in range(0, 60 + 1)},
+        "M": {i: 0 for i in range(0, 60 + 1)},
+        "X": {i: 0 for i in range(0, 60 + 1)}
+    }
 
     for info_df, label in zip([new_info_df, old_info_df], ["new", "old"]):
         cols = info_df.columns
@@ -118,7 +124,7 @@ def main():
             # Find NOAA AR number and timestamp from user input in info dataframe.
             noaa_ar = row["nar"]
             timestamp = floor_minute(row["time_start"]) - datetime.timedelta(0, 12 * 3600)
-            time_range_list(time_range, timestamp)
+            times, time_range = time_range_list(time_interval, timestamp)
             flare_class = row["xray_class"]
 
             if flare_class in ["B", "C"]:
@@ -129,9 +135,10 @@ def main():
             # Find corresponding ending index in properties dataframe.
             # missing, found = [], []
             fail = False
-            for t_rec in time_range_list(time_range, timestamp):
+            for t_rec in times:
                 x = properties_df.loc[properties_df['T_REC'] == t_rec]
                 if x.empty:
+                    missing[flare_class][t_rec.hour] += 1
                     missing_time.loc[len(missing_time)] = row
                     fail = True
                     break
@@ -155,6 +162,25 @@ def main():
                 f.write(f"C: {c}\n")
                 f.write(f"M: {m}\n")
                 f.write(f"X: {x}\n")
+
+            for flare_class in FLARE_LABELS:
+                hour = 10
+                with open(f"{label}_{df_label}_{flare_class.lower()}_flare_10_12h_histogram.txt", "w", newline="\n") as f:
+                    f.write(f"{flare_class} 10h-12h Flare Histogram\n")
+                    f.write('-' * 50 + "\n")
+                    for i in range(0, 60, 5):
+                        i2 = i + 1
+                        i3 = i + 1
+                        i4 = i + 1
+                        i5 = i + 1
+                        sum = missing[flare_class][i] + \
+                              missing[flare_class][i2] + \
+                              missing[flare_class][i3] + \
+                              missing[flare_class][i4] + \
+                              missing[flare_class][i5]
+                        f.write(f"{hour}h-{hour + 1}: {sum}\n" )
+                        hour += 2
+
 
 if __name__ == "__main__":
     main()

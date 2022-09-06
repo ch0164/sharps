@@ -275,12 +275,13 @@ def plot_scatter_3d(df, coincidence):
     # trim_count = int(0.05 * b_data_count)
     # b_data = b_data[trim_count:-trim_count]
 
-    X = sorted(b_data["LD1"])
-    Y = sorted(b_data["LD2"])
-    Z = sorted(b_data["LD3"])
+    trim_count = int(0.05 * b_data.shape[0])
+    X = sorted(b_data["LD1"])[trim_count:-trim_count]
+    Y = sorted(b_data["LD2"])[trim_count:-trim_count]
+    Z = sorted(b_data["LD3"])[trim_count:-trim_count]
     x, y, z = np.mean(X) / len(X), np.mean(Y) / len(Y), np.mean(Z) / len(Z)
     r = np.std(X) * 2
-    x -= r
+    # x -= r
 
     x_pns_surface, y_pns_surface, z_pns_surface = ms(x, y, z, r)
     fig2 = go.Figure(go.Surface(x=x_pns_surface, y=y_pns_surface, z=z_pns_surface, opacity=0.3, showscale=False))
@@ -288,7 +289,7 @@ def plot_scatter_3d(df, coincidence):
     fig3 = go.Figure(data=fig.data + fig2.data)
     fig3.update_layout(title_text=f"LDA 10-22h Mean B-Class Flare Spherical Classifier, {coincidence.capitalize()} Flares", title_x=0.5)
 
-    fig3.write_html(f"{coincidence}/lda_3d.html")
+    fig3.write_html(f"{coincidence}/lda_3d_modified_trimmed.html")
 
 
 
@@ -314,7 +315,7 @@ def spherical_classifier(df, coincidence):
     Z = sorted(b_data["LD3"])
     cx, cy, cz = np.mean(X) / len(X), np.mean(Y) / len(Y), np.mean(Z) / len(Z)
     r = np.std(X) * 2
-    cx -= r
+    # cx -= r
 
     threshold = r**2
     inside, outside = [], []
@@ -350,7 +351,7 @@ def spherical_classifier(df, coincidence):
     m = len(lda_df.loc[lda_df["xray_class"] == "M"])
     x = len(lda_df.loc[lda_df["xray_class"] == "X"])
 
-    with open(f"{coincidence}/spherical_classification_results.txt", "w", newline="\n") as f:
+    with open(f"{coincidence}/spherical_classification_results_modified_trimmed.txt", "w", newline="\n") as f:
         f.write("Flare Counts\n")
         f.write('-' * 50 + "\n")
         for label, count in zip(FLARE_LABELS, [b, c, m, x]):
@@ -417,7 +418,7 @@ def spherical_classifier(df, coincidence):
         elif flare_class == "X":
             tn += 1
 
-    with open(f"{coincidence}/x_spherical_classification_results.txt", "w", newline="\n") as f:
+    with open(f"{coincidence}/x_spherical_classification_results_modified_trimmed.txt", "w", newline="\n") as f:
         f.write("Flare Counts\n")
         f.write('-' * 50 + "\n")
         for label, count in zip(["B", "X"], [b, x]):
@@ -482,7 +483,7 @@ def spherical_classifier(df, coincidence):
         elif flare_class == "M" or flare_class == "X":
             tn += 1
 
-    with open(f"{coincidence}/mx_spherical_classification_results.txt", "w", newline="\n") as f:
+    with open(f"{coincidence}/mx_spherical_classification_results_modified_trimmed.txt", "w", newline="\n") as f:
         f.write("Flare Counts\n")
         f.write('-' * 50 + "\n")
         for label, count in zip(FLARE_LABELS, [b, c, m, x]):
