@@ -39,6 +39,8 @@ FLARE_PROPERTIES += ['d_l_f', 'g_s', 'slf']
 FLARE_LABELS = ["B", "C", "M", "X"]
 FLARE_COLORS = ["blue", "green", "orange", "red"]
 COINCIDENCES = ["all", "coincident", "noncoincident"]
+
+
 # COINCIDENCES = ["all"]
 
 
@@ -86,8 +88,6 @@ time_interval = 12
 abc_properties_df = pd.read_csv("../Data_ABC_with_Korsos_parms.csv")
 mx_properties_df = pd.read_csv("../Data_MX_with_Korsos_parms.csv")
 
-
-
 flare_counts = {label: 0 for label in FLARE_LABELS}
 
 
@@ -109,21 +109,21 @@ def main():
         old_info_df[time_string] = \
             old_info_df[time_string].apply(parse_tai_string)
 
-    missing = {
-        "B": {i: 0 for i in range(0, 60 + 1)},
-        "C": {i: 0 for i in range(0, 60 + 1)},
-        "M": {i: 0 for i in range(0, 60 + 1)},
-        "X": {i: 0 for i in range(0, 60 + 1)}
-    }
+    for info_df, label in zip([new_info_df, old_info_df], ["all_flare_catalog", "curated_flare_catalog"]):
+        missing = {
+            "B": {i: 0 for i in range(0, 60 + 1)},
+            "C": {i: 0 for i in range(0, 60 + 1)},
+            "M": {i: 0 for i in range(0, 60 + 1)},
+            "X": {i: 0 for i in range(0, 60 + 1)}
+        }
 
-    for info_df, label in zip([new_info_df, old_info_df], ["new", "old"]):
         cols = info_df.columns
-        all_good, no_nar, missing_time = pd.DataFrame(columns=cols), pd.DataFrame(columns=cols), pd.DataFrame(columns=cols)
+        all_good, missing_time = pd.DataFrame(columns=cols), pd.DataFrame(columns=cols)
         for flare_index, row in info_df.iterrows():
             print(flare_index, "/", info_df.shape[0])
             # Find NOAA AR number and timestamp from user input in info dataframe.
             noaa_ar = row["nar"]
-            timestamp = floor_minute(row["time_start"]) - datetime.timedelta(0, 12 * 3600)
+            timestamp = floor_minute(row["time_start"]) - datetime.timedelta(hours=12)
             times, time_range = time_range_list(time_interval, timestamp)
             flare_class = row["xray_class"]
 
@@ -133,7 +133,6 @@ def main():
                 properties_df = mx_properties_df
 
             # Find corresponding ending index in properties dataframe.
-            # missing, found = [], []
             fail = False
             for t_rec in times:
                 x = properties_df.loc[properties_df['T_REC'] == t_rec]
@@ -141,12 +140,12 @@ def main():
                     missing[flare_class][t_rec.hour] += 1
                     missing_time.loc[len(missing_time)] = row
                     fail = True
-                    break
+                    # break
 
             if not fail:
                 end_series = properties_df.loc[
                     properties_df["T_REC"] == timestamp]
-                if not end_series.loc[end_series['NOAA_AR'] == noaa_ar].empty:
+                if not end_series.loc[(end_series['NOAA_AR'] == noaa_ar) & (end_series["QUALITY"] == 0)].empty:
                     all_good.loc[len(all_good)] = row
 
         for df, df_label in zip([all_good, missing_time], ["good", "missing_time"]):
@@ -165,20 +164,13 @@ def main():
 
             for flare_class in FLARE_LABELS:
                 hour = 10
-                with open(f"{label}_{df_label}_{flare_class.lower()}_flare_10_12h_histogram.txt", "w", newline="\n") as f:
-                    f.write(f"{flare_class} 10h-12h Flare Histogram\n")
+                with open(f"{label}_{df_label}_{flare_class.lower()}_flare_10_22h_histogram.txt", "w",
+                          newline="\n") as f:
+                    f.write(f"{flare_class} 10h-22h Flare Histogram\n")
                     f.write('-' * 50 + "\n")
-                    for i in range(0, 60, 5):
-                        i2 = i + 1
-                        i3 = i + 1
-                        i4 = i + 1
-                        i5 = i + 1
-                        sum = missing[flare_class][i] + \
-                              missing[flare_class][i2] + \
-                              missing[flare_class][i3] + \
-                              missing[flare_class][i4] + \
-                              missing[flare_class][i5]
-                        f.write(f"{hour}h-{hour + 1}: {sum}\n" )
+                    for i in range(0, 61, 10):
+                        sum = sum(missing[flare_class][i:i+10])
+                        f.write(f"{hour}h-{hour + 1}: {sum}\n")
                         hour += 2
 
 

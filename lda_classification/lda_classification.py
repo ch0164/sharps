@@ -279,6 +279,7 @@ def plot_scatter_3d(df, coincidence):
     X = sorted(b_data["LD1"])[trim_count:-trim_count]
     Y = sorted(b_data["LD2"])[trim_count:-trim_count]
     Z = sorted(b_data["LD3"])[trim_count:-trim_count]
+    b_data["euclid"] = (b_data["LD1"]**2 + b_data["LD2"]**2 + b_data["LD3"]**2)**(1/2)
     x, y, z = np.mean(X) / len(X), np.mean(Y) / len(Y), np.mean(Z) / len(Z)
     r = np.std(X) * 2
     # x -= r
