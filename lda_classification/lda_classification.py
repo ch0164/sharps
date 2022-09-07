@@ -153,6 +153,12 @@ def main():
         noncoin_df.to_csv(f"singh_prime_flare_data_10-22h_mean_{'noncoincident'}.csv")
 
 
+def time_range_list(time_interval, start_time):
+    time_step_range = range(time_interval * 5 + 1)
+    times = [(start_time + datetime.timedelta(0, 12 * 60 * i)) for i in time_step_range]
+    return times, time_step_range
+
+
 def generate_data(coincidence):
     df = pd.read_csv(f"../all_flare_info_2.csv")
     df.dropna(inplace=True)
@@ -176,13 +182,23 @@ def generate_data(coincidence):
             properties_df = mx_properties_df
 
         # Find corresponding ending index in properties dataframe.
-        end_series = properties_df.loc[properties_df["T_REC"] == timestamp]
+        fail = False
+        times, _ = time_range_list(12, timestamp)
+        for t_rec in times:
+            x = properties_df.loc[properties_df['T_REC'] == t_rec]
+            if x.empty:
+                fail = True
+                break
+
+        if fail:
+            continue
+
+        end_series = properties_df.loc[(properties_df["T_REC"] == timestamp) & (properties_df["QUALITY"] == 0)]
+
         if end_series.empty or (
                 end_series.loc[end_series['NOAA_AR'] == noaa_ar]).empty:
-            miss += 1
             continue
         else:
-            hit += 1
             end_index = \
                 end_series.loc[end_series['NOAA_AR'] == noaa_ar].index.tolist()[0]
 
@@ -203,7 +219,6 @@ def generate_data(coincidence):
     df_needed.reset_index(inplace=True)
     df_needed.drop("index", axis=1, inplace=True)
     df_needed.to_csv(f"singh_prime_flare_data_10-22h_mean.csv")
-    print(hit, miss)
 
 
 def plot_reduced_scatter_matrix(df, coincidence, experiment):
@@ -281,7 +296,7 @@ def plot_scatter_3d(df, coincidence):
     Z = sorted(b_data["LD3"])[trim_count:-trim_count]
     b_data["euclid"] = (b_data["LD1"]**2 + b_data["LD2"]**2 + b_data["LD3"]**2)**(1/2)
     x, y, z = np.mean(X) / len(X), np.mean(Y) / len(Y), np.mean(Z) / len(Z)
-    r = np.std(X) * 2
+    r = np.std(b_data["euclid"])
     # x -= r
 
     x_pns_surface, y_pns_surface, z_pns_surface = ms(x, y, z, r)
@@ -310,12 +325,15 @@ def spherical_classifier(df, coincidence):
     b_data = lda_df.loc[lda_df["xray_class"] == "B"]
     b_data_count = b_data.shape[0]
     trim_count = int(0.05 * b_data_count)
-    b_data = b_data[trim_count:-trim_count]
-    X = sorted(b_data["LD1"])
-    Y = sorted(b_data["LD2"])
-    Z = sorted(b_data["LD3"])
-    cx, cy, cz = np.mean(X) / len(X), np.mean(Y) / len(Y), np.mean(Z) / len(Z)
-    r = np.std(X) * 2
+    # b_data["LD1"] = sorted(b_data["LD1"])
+    # b_data["LD2"] = sorted(b_data["LD2"])
+    # b_data["LD3"] = sorted(b_data["LD3"])
+    # b_data = b_data[trim_count:-trim_count]
+    b_data["euclid"] = (b_data["LD1"] ** 2 + b_data["LD2"] ** 2 + b_data["LD3"] ** 2) ** (1 / 2)
+    cx, cy, cz = np.mean(b_data["LD1"]) / len(b_data["LD1"]), \
+                 np.mean(b_data["LD2"]) / len(b_data["LD2"]),\
+                 np.mean(b_data["LD3"]) / len(b_data["LD3"])
+    r = np.std(b_data["euclid"])
     # cx -= r
 
     threshold = r**2
@@ -534,6 +552,7 @@ def spherical_classifier(df, coincidence):
 
 
 if __name__ == "__main__":
+    # main()
     abc_properties_df["T_REC"] = abc_properties_df["T_REC"].apply(parse_tai_string)
     mx_properties_df["T_REC"] = mx_properties_df["T_REC"].apply(parse_tai_string)
     for coincidence in COINCIDENCES:

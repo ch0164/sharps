@@ -140,7 +140,7 @@ def main():
                     missing[flare_class][t_rec.hour] += 1
                     missing_time.loc[len(missing_time)] = row
                     fail = True
-                    # break
+                    break
 
             if not fail:
                 end_series = properties_df.loc[
